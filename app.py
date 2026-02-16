@@ -14,7 +14,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 try:
     API_KEY = st.secrets["VOLC_API_KEY"]
 except:
-    API_KEY = "这里填你原来的Key方便本地测试，但上传GitHub前最好删掉"
+    API_KEY = ""
 
 MODEL_ENDPOINT_ID = "ep-m-20260204004144-cnhgb" 
 BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
@@ -592,4 +592,5 @@ elif st.session_state.stage == "CONSULT":
             st.session_state.history.append({"role": "ferryman", "content": res})
 
             st.rerun()
+
 
