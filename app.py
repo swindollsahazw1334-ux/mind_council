@@ -10,6 +10,8 @@ from openai import OpenAI
 # 尝试从 Streamlit 的云端密钥库读取，如果没有（本地运行），则使用空字符串或手动输入
 try:
     API_KEY = st.secrets["VOLC_API_KEY"]
+except:
+    API_KEY = "这里填你原来的Key方便本地测试，但上传GitHub前最好删掉"
 
 MODEL_ENDPOINT_ID = "ep-m-20260204004144-cnhgb" 
 BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
@@ -585,4 +587,5 @@ elif st.session_state.stage == "CONSULT":
             ctx = f"前文裁决：{st.session_state.history[-1]['content']}\n新追问：{user_input}"
             res = call_llm(f"摆渡人简短回答用户追问：{ctx}", [])
             st.session_state.history.append({"role": "ferryman", "content": res})
+
             st.rerun()
