@@ -3,6 +3,9 @@ import time
 import re
 import random
 from openai import OpenAI
+import sys
+# 强制设置标准输出为 UTF-8，解决云端中文报错问题
+sys.stdout.reconfigure(encoding='utf-8')
 
 # ==========================================
 # 1. 后端配置 (云端安全版)
@@ -589,3 +592,4 @@ elif st.session_state.stage == "CONSULT":
             st.session_state.history.append({"role": "ferryman", "content": res})
 
             st.rerun()
+
