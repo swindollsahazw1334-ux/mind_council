@@ -14,7 +14,7 @@ sys.stdout.reconfigure(encoding='utf-8')
 try:
     API_KEY = st.secrets["VOLC_API_KEY"]
 except:
-    API_KEY = ""
+    API_KEY = "344a2765-dbc5-4ee8-b194-ff0dc075129b"
 
 MODEL_ENDPOINT_ID = "ep-m-20260204004144-cnhgb" 
 BASE_URL = "https://ark.cn-beijing.volces.com/api/v3"
@@ -592,5 +592,6 @@ elif st.session_state.stage == "CONSULT":
             st.session_state.history.append({"role": "ferryman", "content": res})
 
             st.rerun()
+
 
 
