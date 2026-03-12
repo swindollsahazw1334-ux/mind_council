@@ -402,6 +402,10 @@ if "investigate_history" not in st.session_state: st.session_state.investigate_h
 if "case_summary" not in st.session_state: st.session_state.case_summary = ""
 if "faction_opinions" not in st.session_state: st.session_state.faction_opinions = {}
 if "user_mbti" not in st.session_state: st.session_state.user_mbti = "INFP"
+if "age" not in st.session_state: st.session_state.age = 0
+if "attributes" not in st.session_state: st.session_state.attributes = {}
+if "game_over" not in st.session_state: st.session_state.game_over = False
+
 
 def render_chat():
     for msg in st.session_state.history:
@@ -466,132 +470,196 @@ with st.container():
 
 st.markdown("---") # 加一条分割线，区分控制区和聊天区
 render_chat()
-user_input = st.chat_input("输入信息...")
+# --- 只有在需要玩家做选择时，才显示输入框 ---
+if st.session_state.stage == "AWAIT_CHOICE":
+    user_input = st.chat_input(f"【{st.session_state.age}岁】命运的岔路口，你决定怎么做？...")
+else:
+    user_input = None
 
 # --- 状态机 ---
-
-# 1. 初始化
+# 1. 投胎大厅 (初始化属性)
 if st.session_state.stage == "INIT":
-    if not st.session_state.history: st.info("👋 请输入你的烦恼，召唤四方议会。")
-    if user_input:
-        st.session_state.history.append({"role": "user", "content": user_input})
-        st.session_state.investigate_history = [{"role": "system", "content": f"用户烦恼：{user_input}。性格：{st.session_state.user_mbti}"}]
-        with st.spinner("🕵️ 侧写师正在分析..."):
-            q1 = call_llm("这是第一轮。请提出一个最关键的追问。", st.session_state.investigate_history)
-            st.session_state.history.append({"role": "detective", "content": q1})
-            st.session_state.investigate_history.append({"role": "assistant", "content": q1})
-            st.session_state.investigate_round = 1
-            st.session_state.stage = "INVESTIGATE"
+    st.markdown("<h3 style='text-align: center; color: #FFD700; margin-top: 20px;'>🌌 灵魂转生枢纽</h3>", unsafe_allow_html=True)
+    st.info("👋 欢迎来到潜意识模拟器。你的一生将由背景、天赋、运气和努力共同交织而成。")
+    
+    # 将输入框改为“投胎”按钮
+    if st.button("🎲 抽取命格，开始新的人生", use_container_width=True):
+        with st.spinner("命运齿轮开始转动..."):
+            time.sleep(1)
+            
+            # 随机生成初始属性 (1-10分满分制)
+            st.session_state.attributes = {
+                "家境": random.randint(2, 9),  # 避免极端的 1 或 10
+                "天赋": random.randint(2, 9),
+                "运气": random.randint(1, 10),
+                "努力": random.randint(4, 8),  # 初始努力值比较平均
+                "SAN值": 100                   # 心理韧性，满血100，归零则游戏结束
+            }
+            st.session_state.age = 6 # 从6岁童年期开始
+            
+            # 生成投胎报告并写入聊天流
+            report = f"""
+            （系统档案建立完毕）
+            **MBTI 人格**: {st.session_state.user_mbti}
+            **初始年龄**: {st.session_state.age} 岁
+            
+            📊 **初始属性面板**：
+            🏠 家境：{st.session_state.attributes['家境']} / 10
+            ✨ 天赋：{st.session_state.attributes['天赋']} / 10
+            🍀 运气：{st.session_state.attributes['运气']} / 10
+            💪 努力：{st.session_state.attributes['努力']} / 10
+            ❤️ SAN值：{st.session_state.attributes['SAN值']} / 100
+            
+            命运的帷幕已拉开，请准备迎接你的第一个人生事件。
+            """
+            
+            st.session_state.history.append({"role": "detective", "content": report})
+            
+            # 状态扭转：跳过侧写师追问，直接进入“生成随机事件”的全新阶段
+            st.session_state.stage = "GENERATE_EVENT"
             st.rerun()
 
-# 2. 侦探追问
-elif st.session_state.stage == "INVESTIGATE":
-    if user_input:
-        st.session_state.history.append({"role": "user", "content": user_input})
-        st.session_state.investigate_history.append({"role": "user", "content": user_input})
+# ==========================================
+# 游戏引擎循环
+# ==========================================
+# 2. 🎲 生成年龄事件
+elif st.session_state.stage == "GENERATE_EVENT":
+    with st.spinner(f"正在生成 {st.session_state.age} 岁的命运轨迹..."):
+        # 让 AI 结合当前属性，生成一个匹配年龄的随机事件
+        event_prompt = f"""
+        你是一个人生模拟器。玩家当前 {st.session_state.age} 岁。
+        MBTI：{st.session_state.user_mbti}
+        当前属性：家境{st.session_state.attributes['家境']}, 天赋{st.session_state.attributes['天赋']}, 运气{st.session_state.attributes['运气']}, 努力{st.session_state.attributes['努力']}, SAN值{st.session_state.attributes['SAN值']}
         
-        MIN_ROUNDS = 3
-        curr = st.session_state.investigate_round
+        请结合上述属性，生成一个符合该年龄段的【突发心理或现实冲突事件】。
+        字数150字左右，以“你...”开头，结尾必须问一句：“你要怎么做？”。
+        不要给出选项，让玩家自己发挥。
+        """
+        event_text = call_llm(event_prompt, [])
         
-        with st.spinner("🕵️ 侧写师正在思考..."):
-            if curr < MIN_ROUNDS:
-                prompt = f"第{curr}/3轮。禁止结束。请检查缺失维度，继续追问。"
-            else:
-                prompt = "信息够了吗？够了输出【ENOUGH】，不够输出追问。"
-            
-            resp = call_llm(prompt, st.session_state.investigate_history)
-            
-            if "ENOUGH" in resp and curr >= MIN_ROUNDS:
-                st.session_state.history.append({"role": "detective", "content": "（信息收集完毕，正在移交议会...）"})
-                summary = call_llm("用第三人称总结完整案情。", st.session_state.investigate_history)
-                st.session_state.case_summary = summary
-                st.session_state.stage = "ROUND_TABLE"
-                st.rerun()
-            else:
-                q = resp.replace("【ENOUGH】", "").strip()
-                st.session_state.history.append({"role": "detective", "content": q})
-                st.session_state.investigate_history.append({"role": "assistant", "content": q})
-                st.session_state.investigate_round += 1
-                st.rerun()
-
-# 3. 圆桌发表 (四方观点)
-elif st.session_state.stage == "ROUND_TABLE":
-    order = ["rational", "emotional", "conservative", "adventure"]
-    next_speaker = None
-    for faction in order:
-        if faction not in st.session_state.faction_opinions:
-            next_speaker = faction
-            break
-            
-    if next_speaker:
-        faction_data = FACTIONS[next_speaker]
-        with st.spinner(f"{faction_data['name']} 正在发言..."):
-            time.sleep(0.3) # 稍微快一点
-            prompt = f"案情：{st.session_state.case_summary}。性格：{st.session_state.user_mbti}。请给出你的核心主张。"
-            res = call_llm(faction_data['prompt'], [{"role":"user", "content": prompt}])
-            
-            st.session_state.history.append({"role": next_speaker, "content": res})
-            st.session_state.faction_opinions[next_speaker] = res
-            st.rerun()
-    else:
-        # ❌ 这里跳过了 CROSSFIRE，直接去裁决
-        st.session_state.stage = "VERDICT"
+        # 将事件展示在屏幕上
+        st.session_state.history.append({"role": "detective", "content": f"**【{st.session_state.age}岁】**\n{event_text}"})
+        st.session_state.current_event = event_text
+        st.session_state.stage = "AWAIT_CHOICE"
         st.rerun()
 
-# 4. 摆渡人裁决 (核心升级点)
-elif st.session_state.stage == "VERDICT":
-    with st.spinner("🌊 摆渡人正在进行最终裁决..."):
-        time.sleep(1.5)
+# 3. ⏳ 等待玩家输入 (由修改位置 1 的 st.chat_input 触发)
+elif st.session_state.stage == "AWAIT_CHOICE":
+    if user_input:
+        st.session_state.history.append({"role": "user", "content": user_input})
+        st.session_state.user_choice = user_input
+        st.session_state.stage = "FERRYMAN_JUDGE"
+        st.rerun()
+
+# 4. ⚖️ 隐藏议会与命运结算
+elif st.session_state.stage == "FERRYMAN_JUDGE":
+    with st.spinner("命运正在进行结算..."):
         
-        # 构造一个极强的 Prompt，强制 AI 进行内部辩证
-        full_debate = "\n".join([f"{k}: {v}" for k,v in st.session_state.faction_opinions.items()])
+        # A. 暗中获取四大派系的看法（不显示给玩家看）
+        factions_views = ""
+        for key, faction in FACTIONS.items():
+            p = f"事件：{st.session_state.current_event}。请给出简短建议。"
+            res = call_llm(faction['prompt'], [{"role":"user", "content": p}])
+            factions_views += f"[{faction['name']}]: {res}\n"
         
-        prompt = f"""
-        你是摆渡人。用户：{st.session_state.user_mbti}。
+        # B. 摆渡人综合判定
+        judge_prompt = f"""
+        你是命运摆渡人。
+        【当前事件】：{st.session_state.current_event}
+        【四派暗中倾向】：
+        {factions_views}
         
-        【案情】：{st.session_state.case_summary}
+        【玩家的选择】："{st.session_state.user_choice}"
         
-        【四方观点】：
-        {full_debate}
-        
-        💡 **你的核心任务**：
-        请不要只是罗列他们的观点。你需要在内心完成一次**“辩证仲裁”**：
-        1. "冒险派"太激进了，但他的**勇气**可取。
-        2. "保守派"太怂了，但他的**风控**有理。
-        3. "理性派"太冷血，"情绪派"太冲动。
-        
-        请为用户找到一个**完美的平衡点**（Golden Mean）。
-        
-        **输出格式**：
-        ⚠️ **格式红线（绝对禁止，违反会死机）**：
-        1. ❌ **禁止**使用任何列表符号（如 1. 2. 3. 或 - ）。
-        2. ❌ **禁止**使用方括号标题（如【行动指南】、【话术】）。
-        3. ❌ **禁止**像写说明书一样分点作答。
-    
-        ✅ **必须这样做（自然流露）**：
-        1. **叙述性语言**：像给老朋友谈心一样，把“问题的本质”、“具体的行动”自然地融合在段落里。不要有明显的分割感。
-        2. **MBTI定制**：你面对的是{st.session_state.user_mbti}，语气要照顾她的特质（比如对ENFP要保护她的热情，但提醒她不要泛滥）。
-        3. **话术融入**：在文章的最后，自然地写出：“今晚，你可以试着给他发这么一条信息：‘......’”
-    
-        语气：温暖、从容、坚定。不要说教，要共情。
-        请开始你的独白：
+        请评判玩家的选择最偏向哪一派，并给出命运结算。
+        ⚠️ 必须严格按照以下格式输出（变动范围是 -15 到 +15）：
+        【判定倾向】：（填写：理性派/情绪派/保守派/冒险派）
+        【家境变动】：（填写数字，带正负号，如 +2 或 -1 或 0）
+        【天赋变动】：（填写数字）
+        【运气变动】：（填写数字）
+        【努力变动】：（填写数字）
+        【SAN值变动】：（填写数字）
+        【命运点评】：（100字左右叙述，描述这个选择带来的现实后果和心理影响）
         """
         
-        verdict = call_llm(prompt, [], temperature=0.9) # 温度调高，增加灵性
-        st.session_state.history.append({"role": "ferryman", "content": verdict})
-        st.session_state.stage = "CONSULT"
+        verdict = call_llm(judge_prompt, [])
+        
+        # C. 使用正则表达式，精准剥离出属性变动数值
+        try:
+            faction_match = re.search(r'【判定倾向】：(.*)', verdict).group(1).strip()
+            bg_delta = int(re.search(r'【家境变动】：([+-]?\d+)', verdict).group(1))
+            talent_delta = int(re.search(r'【天赋变动】：([+-]?\d+)', verdict).group(1))
+            luck_delta = int(re.search(r'【运气变动】：([+-]?\d+)', verdict).group(1))
+            effort_delta = int(re.search(r'【努力变动】：([+-]?\d+)', verdict).group(1))
+            san_delta = int(re.search(r'【SAN值变动】：([+-]?\d+)', verdict).group(1))
+            comment = re.search(r'【命运点评】：(.*)', verdict, re.DOTALL).group(1).strip()
+        except Exception as e:
+            # 防呆机制：如果 AI 没按格式输出，给个兜底
+            faction_match = "混沌派 (未按常理出牌)"
+            bg_delta, talent_delta, luck_delta, effort_delta, san_delta = 0, 0, 0, 0, -5
+            comment = f"命运的迷雾遮蔽了结算...这或许是一个代价高昂的失误。\n(系统日志: {verdict})"
+
+        # D. 更新玩家属性
+        st.session_state.attributes["家境"] += bg_delta
+        st.session_state.attributes["天赋"] += talent_delta
+        st.session_state.attributes["运气"] += luck_delta
+        st.session_state.attributes["努力"] += effort_delta
+        st.session_state.attributes["SAN值"] += san_delta
+        
+        # E. 展示给玩家看
+        result_display = f"""
+        **⚖️ 命运判定**：你的行为充满了【{faction_match}】的色彩。
+        
+        **📊 属性变动**：
+        🏠 家境 {bg_delta:+} | ✨ 天赋 {talent_delta:+} | 🍀 运气 {luck_delta:+} | 💪 努力 {effort_delta:+} | ❤️ SAN值 {san_delta:+}
+        *(当前SAN值：{st.session_state.attributes['SAN值']}/100)*
+        
+        **📖 结局印记**：
+        {comment}
+        """
+        st.session_state.history.append({"role": "ferryman", "content": result_display.strip()})
+        
+        # F. 年龄增长 & 判断生死
+        st.session_state.age += random.randint(3, 7) # 每次过完一个事件，随机长 3~7 岁
+        
+        if st.session_state.attributes["SAN值"] <= 0:
+            st.session_state.stage = "GAME_OVER"
+            st.session_state.death_reason = "SAN值归零，精神崩溃，灵魂坠入深渊..."
+        elif st.session_state.age >= 80:
+            st.session_state.stage = "GAME_OVER"
+            st.session_state.death_reason = "寿终正寝，走完了漫长的一生。"
+        else:
+            st.session_state.stage = "GENERATE_EVENT" # 继续下一次循环
+        
         st.rerun()
 
-# 5. 会后追问
-elif st.session_state.stage == "CONSULT":
+# 5. 🪦 游戏结束
+elif st.session_state.stage == "GAME_OVER":
+    if "over_reported" not in st.session_state:
+        final_report = f"""
+        <div style="text-align:center; font-size:1.5em; margin-bottom:15px; color:#FF6B6B;">
+            🪦 THE END
+        </div>
+        
+        **终年**：{st.session_state.age} 岁
+        **结局原因**：{st.session_state.death_reason}
+        
+        **最终人生结算**：
+        🏠 家境：{st.session_state.attributes['家境']}
+        ✨ 天赋：{st.session_state.attributes['天赋']}
+        🍀 运气：{st.session_state.attributes['运气']}
+        💪 努力：{st.session_state.attributes['努力']}
+        ❤️ SAN值：{st.session_state.attributes['SAN值']}
+        
+        *点击右上角「重启议会」，开启下一段轮回。*
+        """
+        st.session_state.history.append({"role": "detective", "content": final_report})
+        st.session_state.over_reported = True
+        st.rerun()
     if user_input:
         st.session_state.history.append({"role": "user", "content": user_input})
         with st.spinner("🌊 摆渡人正在思考..."):
             ctx = f"前文裁决：{st.session_state.history[-1]['content']}\n新追问：{user_input}"
             res = call_llm(f"摆渡人简短回答用户追问：{ctx}", [])
             st.session_state.history.append({"role": "ferryman", "content": res})
-
             st.rerun()
-
-
-
