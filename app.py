@@ -599,6 +599,13 @@ elif st.session_state.stage == "GENERATE_EVENT":
         st.rerun()
 
 # 3. ⏳ 等待玩家输入 (由修改位置 1 的 st.chat_input 触发)
+elif st.session_state.stage == "AWAIT_CHOICE":
+    if user_input:
+        st.session_state.history.append({"role": "user", "content": user_input})
+        st.session_state.user_choice = user_input
+        st.session_state.stage = "ROLL_DICE"
+        st.rerun()
+
 # 3.5 🎲 命运骰子判定 (D20 TRPG 系统)
 elif st.session_state.stage == "ROLL_DICE":
     with st.spinner("🎲 命运骰子滚动中..."):
@@ -732,6 +739,8 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
         """
         st.session_state.history.append({"role": "ferryman", "content": result_display.strip()})
         
+        st.session_state.age += random.randint(3, 7)
+        
         if st.session_state.attributes["心情"] <= 0:
             st.session_state.stage = "GAME_OVER"
             st.session_state.death_reason = "心情跌破谷底，你陷入了重度抑郁，放弃了继续生活..."
@@ -765,7 +774,7 @@ elif st.session_state.stage == "GAME_OVER":
         ✨ 天赋：{st.session_state.attributes['天赋']}
         🍀 运气：{st.session_state.attributes['运气']}
         💪 努力：{st.session_state.attributes['努力']}
-        ❤️ SAN值：{st.session_state.attributes['SAN值']}
+        ❤️ 心情：{st.session_state.attributes['心情']}
         
         *点击右上角「重启议会」，开启下一段轮回。*
         """
