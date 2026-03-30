@@ -571,19 +571,24 @@ elif st.session_state.stage == "GENERATE_EVENT":
     # 💀 1. 每次事件前，先进行“死神概率检定”
     current_age = st.session_state.age
     current_health = st.session_state.attributes["健康"]
+    current_luck = st.session_state.attributes["运气"] # ✅ 获取先天运气
     
-    # 算法：基础年龄死亡率(指数增长) + 疾病/低健康惩罚
-    # 例如：20岁致死率约0.3%，60岁致死率约30%，80岁接近100%
-    base_death_rate = (current_age / 80.0) ** 4 * 100 
+    # 算法1：年龄衰老 (改为3次方，让80岁必定寿终正寝，前期也有一定压迫感)
+    base_death_rate = max(0.1, (current_age / 80.0) ** 4 * 100) 
     
-    # 健康惩罚：健康低于 60 后，每低1点增加 1% 的暴毙概率
-    health_penalty = max(0, (60 - current_health) * 1.0) 
+    # 算法2：健康惩罚 (加大生病的代价，低于60分后，每低1分+1.5%死亡率)
+    health_penalty = max(0, (60 - current_health) * 1.5) 
+    
+    # 算法3：✅ 厄运惩罚！(运气低于5时触发，运气越差，飞来横祸的概率越高)
+    # 如果运气=1(天谴开局)，每年会额外增加 8% 的暴毙率！
+    luck_penalty = max(0, (5 - current_luck) * 2.0)
     
     # 综合致死概率
-    if current_health <= 0 or current_age >= 85:
-        total_death_prob = 100.0  # 健康清零或极度高寿，必死
+    if current_health <= 0 or current_age >= 80:
+        total_death_prob = 100.0  # 健康清零或达到80岁高寿，必死
     else:
-        total_death_prob = max(0.1, min(99.9, base_death_rate + health_penalty))
+        # 加上运气惩罚
+        total_death_prob = min(99.9, base_death_rate + health_penalty + luck_penalty)
         
     # 🎲 掷一个 0~100 的百面骰子，判断是否暴毙
     death_roll = random.uniform(0, 100)
