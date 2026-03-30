@@ -526,21 +526,21 @@ if st.session_state.stage == "INIT":
         with st.spinner("命运齿轮开始转动..."):
             time.sleep(1)
             
-            # 随机生成初始属性
             st.session_state.attributes = {
                 "家境": random.randint(2, 9), 
                 "天赋": random.randint(2, 9),
                 "运气": random.randint(1, 10),
                 "努力": random.randint(4, 8),
-                "心情": 80,   # 取代原先的SAN值，满分100，买东西会涨，没钱会跌
-                "金钱": random.randint(1, 5) * 100  # 6岁时的初始零花钱
+                "健康": 80,   # ✅ 改为健康，满分100，低健康会大幅增加暴毙概率
+                "金钱": random.randint(1, 5) * 100 
             }
-            st.session_state.assets = [] # 记录买房、买车等资产
-            st.session_state.age = 6 # 从6岁童年期开始
+            st.session_state.assets = [] 
+            st.session_state.age = 6
             
             # 生成投胎报告并写入聊天流
             assets_str = "无"
             
+            # 生成投胎报告并写入聊天流
             report = f"""
             （系统档案建立完毕）
             **MBTI 人格**: {st.session_state.user_mbti}
@@ -549,7 +549,7 @@ if st.session_state.stage == "INIT":
             📊 **初始属性面板**：
             🏠 家境：{st.session_state.attributes['家境']} / 10 | ✨ 天赋：{st.session_state.attributes['天赋']} / 10
             🍀 运气：{st.session_state.attributes['运气']} / 10 | 💪 努力：{st.session_state.attributes['努力']} / 10
-            ❤️ 心情：{st.session_state.attributes['心情']} / 100
+            ❤️ 健康：{st.session_state.attributes['健康']} / 100
             💰 金钱：¥{st.session_state.attributes['金钱']}
             🎒 资产：{assets_str}
             
@@ -565,31 +565,62 @@ if st.session_state.stage == "INIT":
 # ==========================================
 # 游戏引擎循环
 # ==========================================
-# 2. 🎲 生成年龄事件
+# 2. 🎲 死亡判定与生成年龄事件
 elif st.session_state.stage == "GENERATE_EVENT":
-    with st.spinner(f"正在生成 {st.session_state.age} 岁的命运轨迹..."):
+    
+    # 💀 1. 每次事件前，先进行“死神概率检定”
+    current_age = st.session_state.age
+    current_health = st.session_state.attributes["健康"]
+    
+    # 算法：基础年龄死亡率(指数增长) + 疾病/低健康惩罚
+    # 例如：20岁致死率约0.3%，60岁致死率约30%，80岁接近100%
+    base_death_rate = (current_age / 80.0) ** 4 * 100 
+    
+    # 健康惩罚：健康低于 60 后，每低1点增加 1% 的暴毙概率
+    health_penalty = max(0, (60 - current_health) * 1.0) 
+    
+    # 综合致死概率
+    if current_health <= 0 or current_age >= 85:
+        total_death_prob = 100.0  # 健康清零或极度高寿，必死
+    else:
+        total_death_prob = min(99.9, base_death_rate + health_penalty)
         
-        # ⚠️ 升级版事件生成引擎：回归心理学与内心成长
+    # 🎲 掷一个 0~100 的百面骰子，判断是否暴毙
+    death_roll = random.uniform(0, 100)
+    
+    if death_roll < total_death_prob:
+        # 判定死亡！直接跳转到游戏结束
+        st.session_state.stage = "GAME_OVER"
+        if current_age >= 80:
+            st.session_state.death_reason = f"历经岁月的洗礼，你在 {current_age} 岁这年安详地闭上了双眼，寿终正寝。"
+        elif current_health <= 0:
+            st.session_state.death_reason = f"由于长期积劳成疾，你的身体彻底崩溃，终年 {current_age} 岁。"
+        else:
+            st.session_state.death_reason = f"天有不测风云。虽然你只有 {current_age} 岁，但一场突如其来的意外（当年意外致死率: {total_death_prob:.2f}%）无情地夺走了你的生命..."
+        st.rerun()
+
+    # 👻 2. 如果成功生还，继续生成本年度的事件
+    with st.spinner(f"正在生成 {st.session_state.age} 岁的命运... (当前意外致死率: {total_death_prob:.2f}%)"):
+        
         assets_display = ', '.join(st.session_state.assets) if st.session_state.assets else '无'
         
         event_prompt = f"""
-        你是一个深度的心理学人生模拟器引擎。玩家当前 {st.session_state.age} 岁。
-        MBTI：{st.session_state.user_mbti}
-        当前属性：家境 {st.session_state.attributes['家境']}, 天赋 {st.session_state.attributes['天赋']}, 运气 {st.session_state.attributes['运气']}, 努力 {st.session_state.attributes['努力']}, 心情 {st.session_state.attributes['心情']}
-        当前存款：¥{st.session_state.attributes['金钱']} (金钱仅作背景参考)
+        你是一个深度的心理学人生模拟器。玩家当前 {st.session_state.age} 岁。
+        当前属性：家境 {st.session_state.attributes['家境']}, 天赋 {st.session_state.attributes['天赋']}, 运气 {st.session_state.attributes['运气']}, 努力 {st.session_state.attributes['努力']}, 健康 {st.session_state.attributes['健康']}
+        当前存款：¥{st.session_state.attributes['金钱']}
         拥有资产：{assets_display}
         
-        【核心生成法则】（你必须严格遵守）：
-        1. 聚焦心理成长与现实困境：事件必须主要围绕【人际关系、自我认同、学业/职场挑战、道德困境、原生家庭、孤独感】展开，深度挖掘玩家的内心冲突。
-        2. 金钱是背景，不是核心：18岁前有父母给零花钱，18岁后有工作收入（日常开销已被覆盖）。绝对不要强行制造单纯的“买买买”或“缺钱”事件，除非玩家当前家境极差(<3)才面临生存危机。
-        3. 蝴蝶效应：请基于玩家当前的 MBTI 和属性生成。例如心情低落时容易遭遇人际摩擦，努力值低时容易面临学业/职场失败。
+        【核心生成法则】：
+        1. 聚焦心理与健康困境：事件围绕【人际关系、工作内卷、身体抱恙、原生家庭、生存压力】展开。
+        2. 如果健康较低（<50），必须生成与生病、意外、体力不支相关的负面事件！
         
-        请结合上述法则，生成一个符合该年龄段的【深度心理或现实冲突事件】。
-        ⚠️ 规则：字数极其精简，严格控制在 80 字以内！直接描述发生了什么，以“你要怎么做？”结尾。绝对不要给出选项。
+        请生成一个符合该年龄段的【深度冲突事件】。
+        ⚠️ 严格控制在 80 字以内！直接描述发生了什么，以“你要怎么做？”结尾。绝对不要给选项。
         """
         event_text = call_llm(event_prompt, [])
         
-        st.session_state.history.append({"role": "detective", "content": f"**【{st.session_state.age}岁】**\n{event_text}"})
+        # 在前端显示今年的致死率，拉满压迫感
+        st.session_state.history.append({"role": "detective", "content": f"**【{st.session_state.age}岁】** *(当年死亡风险: {total_death_prob:.2f}%*)\n{event_text}"})
         st.session_state.current_event = event_text
         st.session_state.stage = "AWAIT_CHOICE"
         st.rerun()
@@ -652,55 +683,45 @@ elif st.session_state.stage == "ROLL_DICE":
 elif st.session_state.stage == "FERRYMAN_JUDGE":
     with st.spinner("命运结算中..."):
         
-        # ✅ 提速核心：删除了原本耗时的 for 循环，直接让摆渡人一次性处理所有逻辑！
-        
         judge_prompt = f"""
-        你是洞察人心的命运摆渡人和心理分析师。
+        你是洞察人心的命运摆渡人。
         【当前事件】：{st.session_state.current_event}
         【玩家的选择】："{st.session_state.user_choice}"
         【命运骰子判定】："{st.session_state.dice_summary}"
         
-        【四大派系定义】：
-        - 理性派：只看利益计算、课题分离、沉没成本。
-        - 情绪派：关注情绪感受、内心委屈、共情与心理防御。
-        - 保守派：关注安全、止损、维持现状、回避冲突。
-        - 冒险派：主张破坏、重建、直面恐惧、打破舒适区。
-        
-        请直接判断玩家的选择最符合哪一派，并结合【命运骰子判定】给出心理学视角的结算。
+        请直接判断玩家选择最符合哪一派（理性/情绪/保守/冒险），并结合【命运骰子判定】给出结算。
         
         【数值变动严格法则】：
-        1. 【心情】：核心指标！选择直面创伤、获得内在和解、或骰子成功，心情大幅增加（+10到+30）；被误解、压抑自我、或骰子失败，心情大幅下降。
-        2. 【努力】：选择迎难而上、积极沟通、克制本能，努力值增加。选择逃避、推卸责任、习得性无助，努力值下降。
-        3. 【金钱】：平时有父母/工作支持。只有当事件明确涉及花钱/赚钱，或玩家主动提出“花钱解决/去赚钱”时，才进行金钱加减。其余情况填 0。
-        4. 【家境/天赋/运气】：依据常理和骰子结果小幅波动（单次 -5 到 +5）。
+        1. 【健康】：核心指标！选择休息、锻炼、和解，或骰子成功，健康增加；过度劳累、遭遇意外、严重内耗、骰子失败，健康大幅下降。
+        2. 【努力】：选择迎难而上、克制本能，努力值增加。逃避则下降。
+        3. 【金钱】：平时有收入覆盖。只有明确涉及大额花钱/赚钱时才加减。
+        4. 【家境/天赋/运气】：单次 -5 到 +5 波动。
         
-        ⚠️ 必须严格按照以下格式输出（不要有任何多余的废话）：
+        ⚠️ 必须严格按照以下格式输出：
         【判定倾向】：（填：理性派/情绪派/保守派/冒险派）
         【家境变动】：（填带正负号的数字）
         【天赋变动】：（填带正负号的数字）
         【运气变动】：（填带正负号的数字）
         【努力变动】：（填带正负号的数字）
-        【心情变动】：（填带正负号的数字）
+        【健康变动】：（填带正负号的数字）
         【金钱变动】：（填带正负号的数字）
         【新增资产】：（填资产名称，无则填“无”）
-        【命运点评】：（严格控制在60字以内！用一句心理分析的话，精炼概括该选择带来的内在影响与现实后果。）
+        【命运点评】：（严格控制在60字以内！概括该选择带来的后果。）
         """
-        
         verdict = call_llm(judge_prompt, [])
         
-        # C. 精准剥离出所有属性变动 (后面的正则提取和展示代码保持不变)
         try:
             faction_match = re.search(r'【判定倾向】：(.*)', verdict).group(1).strip()
             bg_delta = int(re.search(r'【家境变动】：([+-]?\d+)', verdict).group(1))
             talent_delta = int(re.search(r'【天赋变动】：([+-]?\d+)', verdict).group(1))
             luck_delta = int(re.search(r'【运气变动】：([+-]?\d+)', verdict).group(1))
             effort_delta = int(re.search(r'【努力变动】：([+-]?\d+)', verdict).group(1))
-            mood_delta = int(re.search(r'【心情变动】：([+-]?\d+)', verdict).group(1))
+            health_delta = int(re.search(r'【健康变动】：([+-]?\d+)', verdict).group(1))
             money_delta = int(re.search(r'【金钱变动】：([+-]?\d+)', verdict).group(1))
             new_asset = re.search(r'【新增资产】：(.*)', verdict).group(1).strip()
             comment = re.search(r'【命运点评】：(.*)', verdict, re.DOTALL).group(1).strip()
         except Exception as e:
-            faction_match, bg_delta, talent_delta, luck_delta, effort_delta, mood_delta, money_delta = "混沌派", 0, 0, 0, 0, -10, 0
+            faction_match, bg_delta, talent_delta, luck_delta, effort_delta, health_delta, money_delta = "混沌派", 0, 0, 0, 0, -5, 0
             new_asset, comment = "无", f"命运的账本出现了模糊... (日志: {verdict})"
 
         # D. 更新玩家属性
@@ -708,14 +729,13 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
         st.session_state.attributes["天赋"] += talent_delta
         st.session_state.attributes["运气"] += luck_delta
         st.session_state.attributes["努力"] += effort_delta
-        st.session_state.attributes["心情"] += mood_delta
+        st.session_state.attributes["健康"] += health_delta
         st.session_state.attributes["金钱"] += money_delta
         
         if new_asset != "无" and new_asset != "无。":
             st.session_state.assets.append(new_asset)
         
-        # 限制心情上限100
-        if st.session_state.attributes["心情"] > 100: st.session_state.attributes["心情"] = 100
+        if st.session_state.attributes["健康"] > 100: st.session_state.attributes["健康"] = 100
         
         # E. 展示给玩家看
         assets_display = ', '.join(st.session_state.assets) if st.session_state.assets else '无'
@@ -725,8 +745,8 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
         **📊 核心属性变动**：
         🏠 家境 {bg_delta:+} | ✨ 天赋 {talent_delta:+} | 🍀 运气 {luck_delta:+} | 💪 努力 {effort_delta:+}
         
-        **💳 资产与心情账单**：
-        ❤️ 心情 {mood_delta:+} (当前: {st.session_state.attributes['心情']}/100)
+        **💳 资产与健康账单**：
+        ❤️ 健康 {health_delta:+} (当前: {st.session_state.attributes['健康']}/100)
         💰 金钱 {money_delta:+} (当前余额: ¥{st.session_state.attributes['金钱']})
         🎒 你的资产：{assets_display}
         
@@ -735,23 +755,9 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
         """
         st.session_state.history.append({"role": "ferryman", "content": result_display.strip()})
         
+        # ✅ 年龄增长，直接进入下一轮 (死亡判定交由下一轮的 GENERATE_EVENT 负责)
         st.session_state.age += random.randint(3, 7)
-        
-        if st.session_state.attributes["心情"] <= 0:
-            st.session_state.stage = "GAME_OVER"
-            st.session_state.death_reason = "心情跌破谷底，你陷入了重度抑郁，放弃了继续生活..."
-        elif st.session_state.attributes["金钱"] <= -500000 and st.session_state.attributes["心情"] < 30:
-             # 可选彩蛋：如果负债五十万且心情极差，可能触发绝路结局
-            st.session_state.stage = "GAME_OVER"
-            st.session_state.death_reason = "背负了无法偿还的巨额债务，身心俱疲，在绝望中走向了终点..."
-        elif st.session_state.age >= 80:
-            # ✅ 寿终正寝完美保留！
-            st.session_state.stage = "GAME_OVER"
-            st.session_state.death_reason = "历经岁月的洗礼，你寿终正寝，安详地走完了漫长的一生。"
-        else:
-            # 只要没死，就继续下一次循环！
-            st.session_state.stage = "GENERATE_EVENT"
-        
+        st.session_state.stage = "GENERATE_EVENT"
         st.rerun()
 
 # 5. 🪦 游戏结束
@@ -770,7 +776,7 @@ elif st.session_state.stage == "GAME_OVER":
         ✨ 天赋：{st.session_state.attributes['天赋']}
         🍀 运气：{st.session_state.attributes['运气']}
         💪 努力：{st.session_state.attributes['努力']}
-        ❤️ 心情：{st.session_state.attributes['心情']}
+        ❤️ 健康：{st.session_state.attributes['健康']}
         
         *点击右上角「重启议会」，开启下一段轮回。*
         """
