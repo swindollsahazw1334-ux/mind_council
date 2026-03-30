@@ -558,13 +558,96 @@ if st.session_state.stage == "INIT":
             
             st.session_state.history.append({"role": "detective", "content": report})
             
-            # 状态扭转：跳过侧写师追问，直接进入“生成随机事件”的全新阶段
-            st.session_state.stage = "GENERATE_EVENT"
+            # 状态扭转：直接进入“生存结算”阶段 (领钱 + 吃饭)
+            st.session_state.stage = "MAINTENANCE"
             st.rerun()
 
 # ==========================================
 # 游戏引擎循环
 # ==========================================
+
+# 1.5 🍖 生存与经济结算阶段 (发工资 & 饮食管理)
+elif st.session_state.stage == "MAINTENANCE":
+    
+    # 1. 发放本期资金 (防止页面刷新重复发钱，用 income_age 锁住)
+    if "income_age" not in st.session_state or st.session_state.income_age != st.session_state.age:
+        current_age = st.session_state.age
+        bg = st.session_state.attributes["家境"]
+        talent = st.session_state.attributes["天赋"]
+        effort = st.session_state.attributes["努力"]
+        
+        # 【经济系统】：未成年看家境，成年看天赋和努力
+        if current_age < 18:
+            income = int(bg * random.randint(1000, 3000))
+            source = "父母给的零花钱"
+        else:
+            # 成年后，天赋和努力共同决定你的职场收入！
+            income = int((talent * 0.5 + effort * 0.5) * random.randint(4000, 10000))
+            source = "工作劳动所得"
+            
+        st.session_state.attributes["金钱"] += income
+        st.session_state.income_amount = income
+        st.session_state.income_source = source
+        st.session_state.income_age = current_age
+    
+    # 2. 渲染生存选择面板 (以精致的卡片形式呈现)
+    st.markdown(f"""
+    <div class="ferryman-card" style="border-color: #4CAF50; box-shadow: 0 0 15px rgba(76, 175, 80, 0.2);">
+        <h3 style="color: #4CAF50; margin-top: 0; text-align: center;">📅 【{st.session_state.age}岁】 生存结算</h3>
+        <p style="text-align: center;">💰 <b>本期资金入账</b>：+{st.session_state.income_amount} ¥ ({st.session_state.income_source})</p>
+        <p style="text-align: center; font-size: 1.2em;">💳 <b>当前总存款</b>：¥{st.session_state.attributes["金钱"]}</p>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    # 3. 饥饿与健康表单
+    with st.form("survival_form"):
+        st.write("🍽️ **必须选择本期的饮食标准** (关乎生死！)：")
+        food_choice = st.radio("饮食选项：", [
+            "【廉价果腹】¥1,000 (长期吃会营养不良，健康 -5)", 
+            "【平价日常】¥5,000 (粗茶淡饭，健康不变)", 
+            "【高档食补】¥15,000 (营养均衡，健康 +5)"
+        ], index=1)
+        
+        st.write("🏋️ **额外健康管理** (可选)：")
+        gym_choice = st.checkbox("【办高档健身卡】¥8,000 (挥汗如雨，大量恢复：健康 +10)")
+        
+        submit_btn = st.form_submit_button("💳 支付并开启新的一年")
+        
+        if submit_btn:
+            # 解析花销
+            food_cost = 1000 if "廉价" in food_choice else (5000 if "平价" in food_choice else 15000)
+            food_health = -5 if "廉价" in food_choice else (0 if "平价" in food_choice else 5)
+            
+            gym_cost = 8000 if gym_choice else 0
+            gym_health = 10 if gym_choice else 0
+            
+            total_cost = food_cost + gym_cost
+            total_health_change = food_health + gym_health
+            
+            # 💀 饥饿/饿死判定！
+            if st.session_state.attributes["金钱"] < food_cost:
+                st.session_state.attributes["健康"] = 0
+                st.session_state.stage = "GAME_OVER"
+                st.session_state.death_reason = f"你的存款不足以支付最廉价的食物 (缺口: ¥{food_cost - st.session_state.attributes['金钱']})。饥寒交迫中，你活活饿死在了街头..."
+            else:
+                # 扣钱加血
+                st.session_state.attributes["金钱"] -= total_cost
+                st.session_state.attributes["健康"] += total_health_change
+                if st.session_state.attributes["健康"] > 100: st.session_state.attributes["健康"] = 100
+                
+                # 生成系统账单播报
+                summary = f"**【{st.session_state.age}岁 生存账单】**\n"
+                summary += f"💵 收入：+{st.session_state.income_amount} ({st.session_state.income_source})\n"
+                summary += f"💸 支出：-{total_cost} (饮食与健康管理)\n"
+                summary += f"❤️ 健康变动：{total_health_change:+} (当前健康: {st.session_state.attributes['健康']}/100)"
+                st.session_state.history.append({"role": "detective", "content": summary})
+                
+                # 结算完毕，平安进入当年的随机事件！
+                st.session_state.stage = "GENERATE_EVENT"
+            st.rerun()
+
+# ---------------- 下面是你原本的代码：2. 🎲 死亡判定与生成年龄事件 ----------------
+
 # 2. 🎲 死亡判定与生成年龄事件
 elif st.session_state.stage == "GENERATE_EVENT":
     
@@ -767,7 +850,7 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
         
         # F. 年龄增长
         st.session_state.age += random.randint(3, 7)
-        st.session_state.stage = "GENERATE_EVENT"
+        st.session_state.stage = "MAINTENANCE" # ✅ 长大后，进入生存结算阶段
         st.rerun()
 
 # 5. 🪦 游戏结束
