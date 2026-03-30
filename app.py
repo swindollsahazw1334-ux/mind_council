@@ -684,50 +684,51 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
     with st.spinner("命运结算中..."):
         
         judge_prompt = f"""
-        你是洞察人心的命运摆渡人。
+        你是洞察人心的命运摆渡人和心理分析师。
         【当前事件】：{st.session_state.current_event}
         【玩家的选择】："{st.session_state.user_choice}"
         【命运骰子判定】："{st.session_state.dice_summary}"
         
-        请直接判断玩家选择最符合哪一派（理性/情绪/保守/冒险），并结合【命运骰子判定】给出结算。
+        【四大派系定义】：
+        - 理性派：只看利益计算、课题分离、沉没成本。
+        - 情绪派：关注情绪感受、内心委屈、共情与心理防御。
+        - 保守派：关注安全、止损、维持现状、回避冲突。
+        - 冒险派：主张破坏、重建、直面恐惧、打破舒适区。
         
-        【数值变动严格法则】：
-        1. 【健康】：核心指标！选择休息、锻炼、和解，或骰子成功，健康增加；过度劳累、遭遇意外、严重内耗、骰子失败，健康大幅下降。
-        2. 【努力】：选择迎难而上、克制本能，努力值增加。逃避则下降。
-        3. 【金钱】：平时有收入覆盖。只有明确涉及大额花钱/赚钱时才加减。
-        4. 【家境/天赋/运气】：单次 -5 到 +5 波动。
+        请直接判断玩家的选择最符合哪一派，并结合【命运骰子判定】给出心理学视角的结算。
         
-        ⚠️ 必须严格按照以下格式输出：
+        【数值变动严格法则】（注意：天赋和运气是先天的，绝对固定不变！）：
+        1. 【健康】：核心指标！选择直面创伤、获得和解，或骰子成功，健康增加；过度劳累、遭遇意外、严重内耗、骰子失败，健康大幅下降。
+        2. 【努力】：完全受玩家认知影响。选择迎难而上、积极沟通、克制本能，努力值增加。选择逃避、推卸责任、习得性无助，努力值下降。
+        3. 【家境】：受现实条件和骰子运气影响。发生意外、破财、大失败会使家境下降，抓住机遇、获得横财则上升。
+        4. 【金钱】：平时有收入覆盖。只有当事件明确涉及花大钱/赚钱，才进行金钱加减。其余填 0。
+        
+        ⚠️ 必须严格按照以下格式输出（绝不要输出天赋和运气变动！）：
         【判定倾向】：（填：理性派/情绪派/保守派/冒险派）
         【家境变动】：（填带正负号的数字）
-        【天赋变动】：（填带正负号的数字）
-        【运气变动】：（填带正负号的数字）
         【努力变动】：（填带正负号的数字）
         【健康变动】：（填带正负号的数字）
         【金钱变动】：（填带正负号的数字）
         【新增资产】：（填资产名称，无则填“无”）
-        【命运点评】：（严格控制在60字以内！概括该选择带来的后果。）
+        【命运点评】：（严格控制在60字以内！用一句心理分析的话，精炼概括该选择带来的内在影响与现实后果。）
         """
         verdict = call_llm(judge_prompt, [])
         
+        # C. 精准剥离（去掉了天赋和运气）
         try:
             faction_match = re.search(r'【判定倾向】：(.*)', verdict).group(1).strip()
             bg_delta = int(re.search(r'【家境变动】：([+-]?\d+)', verdict).group(1))
-            talent_delta = int(re.search(r'【天赋变动】：([+-]?\d+)', verdict).group(1))
-            luck_delta = int(re.search(r'【运气变动】：([+-]?\d+)', verdict).group(1))
             effort_delta = int(re.search(r'【努力变动】：([+-]?\d+)', verdict).group(1))
             health_delta = int(re.search(r'【健康变动】：([+-]?\d+)', verdict).group(1))
             money_delta = int(re.search(r'【金钱变动】：([+-]?\d+)', verdict).group(1))
             new_asset = re.search(r'【新增资产】：(.*)', verdict).group(1).strip()
             comment = re.search(r'【命运点评】：(.*)', verdict, re.DOTALL).group(1).strip()
         except Exception as e:
-            faction_match, bg_delta, talent_delta, luck_delta, effort_delta, health_delta, money_delta = "混沌派", 0, 0, 0, 0, -5, 0
+            faction_match, bg_delta, effort_delta, health_delta, money_delta = "混沌派", 0, 0, -5, 0
             new_asset, comment = "无", f"命运的账本出现了模糊... (日志: {verdict})"
 
-        # D. 更新玩家属性
+        # D. 更新玩家属性（天赋和运气不再更新）
         st.session_state.attributes["家境"] += bg_delta
-        st.session_state.attributes["天赋"] += talent_delta
-        st.session_state.attributes["运气"] += luck_delta
         st.session_state.attributes["努力"] += effort_delta
         st.session_state.attributes["健康"] += health_delta
         st.session_state.attributes["金钱"] += money_delta
@@ -743,7 +744,8 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
         **⚖️ 命运判定**：你的行为充满了【{faction_match}】的色彩。
         
         **📊 核心属性变动**：
-        🏠 家境 {bg_delta:+} | ✨ 天赋 {talent_delta:+} | 🍀 运气 {luck_delta:+} | 💪 努力 {effort_delta:+}
+        🏠 家境 {bg_delta:+} (当前: {st.session_state.attributes['家境']}) | 💪 努力 {effort_delta:+} (当前: {st.session_state.attributes['努力']})
+        *(先天锁定: ✨ 天赋 {st.session_state.attributes['天赋']} | 🍀 运气 {st.session_state.attributes['运气']})*
         
         **💳 资产与健康账单**：
         ❤️ 健康 {health_delta:+} (当前: {st.session_state.attributes['健康']}/100)
@@ -755,7 +757,7 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
         """
         st.session_state.history.append({"role": "ferryman", "content": result_display.strip()})
         
-        # ✅ 年龄增长，直接进入下一轮 (死亡判定交由下一轮的 GENERATE_EVENT 负责)
+        # F. 年龄增长
         st.session_state.age += random.randint(3, 7)
         st.session_state.stage = "GENERATE_EVENT"
         st.rerun()
