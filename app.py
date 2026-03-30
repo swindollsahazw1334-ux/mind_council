@@ -583,7 +583,7 @@ elif st.session_state.stage == "GENERATE_EVENT":
     if current_health <= 0 or current_age >= 85:
         total_death_prob = 100.0  # 健康清零或极度高寿，必死
     else:
-        total_death_prob = min(99.9, base_death_rate + health_penalty)
+        total_death_prob = max(0.1, min(99.9, base_death_rate + health_penalty))
         
     # 🎲 掷一个 0~100 的百面骰子，判断是否暴毙
     death_roll = random.uniform(0, 100)
