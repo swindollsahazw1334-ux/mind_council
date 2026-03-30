@@ -532,61 +532,123 @@ else:
 # 1. 投胎大厅 (初始化属性)
 if st.session_state.stage == "INIT":
     st.markdown("<h3 style='text-align: center; color: #FFD700; margin-top: 20px;'>🌌 灵魂转生枢纽</h3>", unsafe_allow_html=True)
-    st.info("👋 欢迎来到潜意识模拟器。你的一生将由背景、天赋、运气和努力共同交织而成。")
+    st.info("👋 欢迎来到潜意识模拟器。你可以选择听从命运的安排，或是自己定制灵魂的底色。")
     
-    # 将输入框改为“投胎”按钮
-    if st.button("🎲 抽取命格，开始新的人生", use_container_width=True):
-        with st.spinner("命运齿轮开始转动..."):
-            time.sleep(1)
+    # ✅ 新增：使用 Tabs 把随机和自定义分开
+    tab1, tab2 = st.tabs(["🎲 听天由命 (随机抽取)", "✍️ 逆天改命 (自定义属性)"])
+    
+    # ==================================
+    # 模式 1：原本的随机抽卡模式
+    # ==================================
+    with tab1:
+        st.write("系统将根据现实社会的真实阶级财富分布，为你随机分配命格。")
+        if st.button("🎲 抽取命格，开始新的人生", use_container_width=True):
+            with st.spinner("命运齿轮开始转动..."):
+                time.sleep(1)
+                
+                # 1. 真实社会阶级概率抽取
+                bg_levels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                bg_weights = [10.0, 20.0, 30.0, 20.0, 10.0, 5.0, 3.0, 1.5, 0.4, 0.1]
+                rolled_bg = random.choices(bg_levels, weights=bg_weights, k=1)[0]
+                
+                # 2. 阶级决定初始压岁钱 (指数级差距)
+                initial_money_map = {
+                    1: 0, 2: 50, 3: 200, 4: 800, 5: 3000, 
+                    6: 10000, 7: 50000, 8: 200000, 9: 500000, 10: 1000000
+                }
+                initial_money = initial_money_map[rolled_bg] + random.randint(-10, 50)
+                if initial_money < 0: initial_money = 0
+                
+                st.session_state.attributes = {
+                    "家境": rolled_bg, 
+                    "天赋": random.randint(2, 9),
+                    "运气": random.randint(1, 10),
+                    "努力": random.randint(4, 8),
+                    "健康": 80,
+                    "金钱": initial_money 
+                }
+                st.session_state.assets = [] 
+                st.session_state.age = 6
+                
+                # 生成投胎报告并写入聊天流
+                report = f"""
+                （系统档案建立完毕）
+                **MBTI 人格**: {st.session_state.user_mbti}
+                **初始年龄**: {st.session_state.age} 岁
+                **开局模式**: 听天由命 (随机生成)
+                
+                📊 **初始属性面板**：
+                🏠 家境：{st.session_state.attributes['家境']} / 10 | ✨ 天赋：{st.session_state.attributes['天赋']} / 10
+                🍀 运气：{st.session_state.attributes['运气']} / 10 | 💪 努力：{st.session_state.attributes['努力']} / 10
+                ❤️ 健康：{st.session_state.attributes['健康']} / 100
+                💰 金钱：¥{st.session_state.attributes['金钱']}
+                🎒 资产：无
+                
+                命运的帷幕已拉开，请准备迎接你的第一个人生事件。
+                """
+                
+                st.session_state.history.append({"role": "detective", "content": report.strip()})
+                st.session_state.stage = "MAINTENANCE"
+                st.rerun()
+
+    # ==================================
+    # 模式 2：全新的自定义属性模式
+    # ==================================
+    with tab2:
+        st.write("自行设定灵魂的核心属性（使用滑块调整）：")
+        
+        # 使用列布局让界面更美观
+        col1, col2 = st.columns(2)
+        with col1:
+            custom_bg = st.slider("🏠 家境 (1=赤贫, 10=财阀)", min_value=1, max_value=10, value=5)
+            custom_talent = st.slider("✨ 天赋 (0=平庸, 10=天才)", min_value=0, max_value=10, value=5)
+        with col2:
+            custom_luck = st.slider("🍀 运气 (1=天谴, 10=天选)", min_value=1, max_value=10, value=5)
+            custom_effort = st.slider("💪 努力 (0=摆烂, 10=内卷)", min_value=0, max_value=10, value=5)
             
-            # 1. 真实社会阶级概率抽取
-            bg_levels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-            bg_weights = [10.0, 20.0, 30.0, 20.0, 10.0, 5.0, 3.0, 1.5, 0.4, 0.1]
-            rolled_bg = random.choices(bg_levels, weights=bg_weights, k=1)[0]
-            
-            # 2. 阶级决定初始压岁钱 (指数级差距)
-            initial_money_map = {
-                1: 0, 2: 50, 3: 200, 4: 800, 5: 3000, 
-                6: 10000, 7: 50000, 8: 200000, 9: 500000, 10: 1000000
-            }
-            initial_money = initial_money_map[rolled_bg] + random.randint(-10, 50)
-            if initial_money < 0: initial_money = 0
-            
-            st.session_state.attributes = {
-                "家境": rolled_bg, 
-                "天赋": random.randint(2, 9),
-                "运气": random.randint(1, 10),
-                "努力": random.randint(4, 8),
-                "健康": 80,
-                "金钱": initial_money 
-            }
-            st.session_state.assets = [] 
-            st.session_state.age = 6
-            
-            # 生成投胎报告并写入聊天流
-            assets_str = "无"
-            
-            # 生成投胎报告并写入聊天流
-            report = f"""
-            （系统档案建立完毕）
-            **MBTI 人格**: {st.session_state.user_mbti}
-            **初始年龄**: {st.session_state.age} 岁
-            
-            📊 **初始属性面板**：
-            🏠 家境：{st.session_state.attributes['家境']} / 10 | ✨ 天赋：{st.session_state.attributes['天赋']} / 10
-            🍀 运气：{st.session_state.attributes['运气']} / 10 | 💪 努力：{st.session_state.attributes['努力']} / 10
-            ❤️ 健康：{st.session_state.attributes['健康']} / 100
-            💰 金钱：¥{st.session_state.attributes['金钱']}
-            🎒 资产：{assets_str}
-            
-            命运的帷幕已拉开，请准备迎接你的第一个人生事件。
-            """
-            
-            st.session_state.history.append({"role": "detective", "content": report})
-            
-            # 状态扭转：直接进入“生存结算”阶段 (领钱 + 吃饭)
-            st.session_state.stage = "MAINTENANCE"
-            st.rerun()
+        if st.button("✨ 锁定命格，开始定制人生", use_container_width=True):
+            with st.spinner("正在为你重塑灵魂..."):
+                time.sleep(1)
+                
+                # 依然保留阶级带来的金钱差距！
+                initial_money_map = {
+                    1: 0, 2: 50, 3: 200, 4: 800, 5: 3000, 
+                    6: 10000, 7: 50000, 8: 200000, 9: 500000, 10: 1000000
+                }
+                initial_money = initial_money_map[custom_bg] + random.randint(-10, 50)
+                if initial_money < 0: initial_money = 0
+                
+                st.session_state.attributes = {
+                    "家境": custom_bg, 
+                    "天赋": custom_talent,
+                    "运气": custom_luck,
+                    "努力": custom_effort,
+                    "健康": 80,
+                    "金钱": initial_money 
+                }
+                st.session_state.assets = [] 
+                st.session_state.age = 6
+                
+                # 生成投胎报告
+                report = f"""
+                （系统档案建立完毕）
+                **MBTI 人格**: {st.session_state.user_mbti}
+                **初始年龄**: {st.session_state.age} 岁
+                **开局模式**: 逆天改命 (完全定制)
+                
+                📊 **初始属性面板**：
+                🏠 家境：{st.session_state.attributes['家境']} / 10 | ✨ 天赋：{st.session_state.attributes['天赋']} / 10
+                🍀 运气：{st.session_state.attributes['运气']} / 10 | 💪 努力：{st.session_state.attributes['努力']} / 10
+                ❤️ 健康：{st.session_state.attributes['健康']} / 100
+                💰 金钱：¥{st.session_state.attributes['金钱']}
+                🎒 资产：无
+                
+                你已亲手写下了自己的命运剧本，准备迎接人生吧。
+                """
+                
+                st.session_state.history.append({"role": "detective", "content": report.strip()})
+                st.session_state.stage = "MAINTENANCE"
+                st.rerun()
 
 # ==========================================
 # 游戏引擎循环
