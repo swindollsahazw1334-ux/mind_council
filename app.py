@@ -512,8 +512,21 @@ if st.session_state.stage == "AWAIT_CHOICE":
 
     # 正常的命运选择输入框
     user_input = st.chat_input(f"【{st.session_state.age}岁】命运的岔路口，你决定怎么做？...")
+    
+elif st.session_state.stage == "GAME_OVER":
+    user_input = st.chat_input("灵魂已离体... 向命运摆渡人诉说你对这一生的感悟吧：")
+    
+# ✅ 新增 1：生存结算时，用禁用的输入框把页面“钉”在底部！
+elif st.session_state.stage == "MAINTENANCE":
+    user_input = st.chat_input("💸 请先在上方完成【生存账单】的支付...", disabled=True)
+    
+# ✅ 新增 2：AI思考或掷骰子时，也保持禁用输入框，彻底杜绝画面乱跳！
+elif st.session_state.stage in ["GENERATE_EVENT", "ROLL_DICE", "FERRYMAN_JUDGE"]:
+    user_input = st.chat_input("⏳ 命运的齿轮正在转动...", disabled=True)
+    
 else:
     user_input = None
+
 
 # --- 状态机 ---
 # 1. 投胎大厅 (初始化属性)
