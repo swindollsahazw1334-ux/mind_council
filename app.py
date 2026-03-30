@@ -526,13 +526,26 @@ if st.session_state.stage == "INIT":
         with st.spinner("命运齿轮开始转动..."):
             time.sleep(1)
             
+            # 1. 真实社会阶级概率抽取
+            bg_levels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+            bg_weights = [10.0, 20.0, 30.0, 20.0, 10.0, 5.0, 3.0, 1.5, 0.4, 0.1]
+            rolled_bg = random.choices(bg_levels, weights=bg_weights, k=1)[0]
+            
+            # 2. 阶级决定初始压岁钱 (指数级差距)
+            initial_money_map = {
+                1: 0, 2: 50, 3: 200, 4: 800, 5: 3000, 
+                6: 10000, 7: 50000, 8: 200000, 9: 500000, 10: 1000000
+            }
+            initial_money = initial_money_map[rolled_bg] + random.randint(-10, 50)
+            if initial_money < 0: initial_money = 0
+            
             st.session_state.attributes = {
-                "家境": random.randint(2, 9), 
+                "家境": rolled_bg, 
                 "天赋": random.randint(2, 9),
                 "运气": random.randint(1, 10),
                 "努力": random.randint(4, 8),
-                "健康": 80,   # ✅ 改为健康，满分100，低健康会大幅增加暴毙概率
-                "金钱": random.randint(1, 5) * 100 
+                "健康": 80,
+                "金钱": initial_money 
             }
             st.session_state.assets = [] 
             st.session_state.age = 6
@@ -569,19 +582,24 @@ if st.session_state.stage == "INIT":
 # 1.5 🍖 生存与经济结算阶段 (发工资 & 饮食管理)
 elif st.session_state.stage == "MAINTENANCE":
     
-    # 1. 发放本期资金 (防止页面刷新重复发钱，用 income_age 锁住)
+    # 1. 发放本期资金 (防止页面刷新重复发钱)
     if "income_age" not in st.session_state or st.session_state.income_age != st.session_state.age:
         current_age = st.session_state.age
         bg = st.session_state.attributes["家境"]
         talent = st.session_state.attributes["天赋"]
         effort = st.session_state.attributes["努力"]
         
-        # 【经济系统】：未成年看家境，成年看天赋和努力
+        # 【经济系统】：未成年看家境 (十级阶级分化)，成年看天赋和努力
         if current_age < 18:
-            income = int(bg * random.randint(1000, 3000))
-            source = "父母给的零花钱"
+            pocket_money_map = {
+                1: 100, 2: 800, 3: 3000, 4: 8000, 5: 20000, 
+                6: 80000, 7: 200000, 8: 800000, 9: 2000000, 10: 10000000
+            }
+            base_income = pocket_money_map.get(bg, 1000)
+            income = int(base_income * random.uniform(0.8, 1.2))
+            source = "家族/父母提供的生活费"
         else:
-            # 成年后，天赋和努力共同决定你的职场收入！
+            # 成年后，天赋和努力共同决定收入
             income = int((talent * 0.5 + effort * 0.5) * random.randint(4000, 10000))
             source = "工作劳动所得"
             
@@ -590,7 +608,7 @@ elif st.session_state.stage == "MAINTENANCE":
         st.session_state.income_source = source
         st.session_state.income_age = current_age
     
-    # 2. 渲染生存选择面板 (以精致的卡片形式呈现)
+    # 2. 渲染生存选择面板
     st.markdown(f"""
     <div class="ferryman-card" style="border-color: #4CAF50; box-shadow: 0 0 15px rgba(76, 175, 80, 0.2);">
         <h3 style="color: #4CAF50; margin-top: 0; text-align: center;">📅 【{st.session_state.age}岁】 生存结算</h3>
@@ -603,7 +621,7 @@ elif st.session_state.stage == "MAINTENANCE":
     with st.form("survival_form"):
         st.write("🍽️ **必须选择本期的饮食标准** (关乎生死！)：")
         food_choice = st.radio("饮食选项：", [
-            "【廉价果腹】¥1,000 (长期吃会营养不良，健康 -5)", 
+            "【廉价果腹】¥1,000 (营养不良，健康 -5)", 
             "【平价日常】¥5,000 (粗茶淡饭，健康不变)", 
             "【高档食补】¥15,000 (营养均衡，健康 +5)"
         ], index=1)
@@ -614,39 +632,35 @@ elif st.session_state.stage == "MAINTENANCE":
         submit_btn = st.form_submit_button("💳 支付并开启新的一年")
         
         if submit_btn:
-            # 解析花销
             food_cost = 1000 if "廉价" in food_choice else (5000 if "平价" in food_choice else 15000)
             food_health = -5 if "廉价" in food_choice else (0 if "平价" in food_choice else 5)
-            
             gym_cost = 8000 if gym_choice else 0
             gym_health = 10 if gym_choice else 0
             
             total_cost = food_cost + gym_cost
             total_health_change = food_health + gym_health
             
-            # 💀 饥饿/饿死判定！
+            # 💀 饥饿/饿死判定
             if st.session_state.attributes["金钱"] < food_cost:
                 st.session_state.attributes["健康"] = 0
                 st.session_state.stage = "GAME_OVER"
-                st.session_state.death_reason = f"你的存款不足以支付最廉价的食物 (缺口: ¥{food_cost - st.session_state.attributes['金钱']})。饥寒交迫中，你活活饿死在了街头..."
+                st.session_state.death_reason = f"存款不足以支付最廉价的食物 (缺口: ¥{food_cost - st.session_state.attributes['金钱']})。饥寒交迫中，你活活饿死在了街头..."
             else:
-                # 扣钱加血
                 st.session_state.attributes["金钱"] -= total_cost
                 st.session_state.attributes["健康"] += total_health_change
                 if st.session_state.attributes["健康"] > 100: st.session_state.attributes["健康"] = 100
                 
-                # 生成系统账单播报
                 summary = f"**【{st.session_state.age}岁 生存账单】**\n"
                 summary += f"💵 收入：+{st.session_state.income_amount} ({st.session_state.income_source})\n"
                 summary += f"💸 支出：-{total_cost} (饮食与健康管理)\n"
                 summary += f"❤️ 健康变动：{total_health_change:+} (当前健康: {st.session_state.attributes['健康']}/100)"
                 st.session_state.history.append({"role": "detective", "content": summary})
                 
-                # 结算完毕，平安进入当年的随机事件！
+                # 结算完毕，进入当年的随机事件！
                 st.session_state.stage = "GENERATE_EVENT"
             st.rerun()
 
-# ---------------- 下面是你原本的代码：2. 🎲 死亡判定与生成年龄事件 ----------------
+# --- 这里是你原本的生成事件代码 ---
 
 # 2. 🎲 死亡判定与生成年龄事件
 elif st.session_state.stage == "GENERATE_EVENT":
