@@ -485,7 +485,6 @@ if st.session_state.stage == "AWAIT_CHOICE":
             current_luck = st.session_state.attributes["运气"]
             
             # 3. 严格判定头奖 (运气满值 10 且 骰子满值 20)
-            # 3. 严格判定头奖 (运气满值 10 且 骰子满值 20)
             if current_luck == 10 and lottery_dice == 20:
                 prize = 5000000 # 500万头奖
                 st.session_state.attributes["金钱"] += prize
@@ -738,6 +737,9 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
             st.session_state.assets.append(new_asset)
         
         if st.session_state.attributes["健康"] > 100: st.session_state.attributes["健康"] = 100
+        # ✅ 新增：锁死家境和努力的上下限 (0-10)
+        st.session_state.attributes["家境"] = max(0, min(10, st.session_state.attributes["家境"]))
+        st.session_state.attributes["努力"] = max(0, min(10, st.session_state.attributes["努力"]))
         
         # E. 展示给玩家看
         assets_display = ', '.join(st.session_state.assets) if st.session_state.assets else '无'
