@@ -485,25 +485,26 @@ if st.session_state.stage == "AWAIT_CHOICE":
             current_luck = st.session_state.attributes["运气"]
             
             # 3. 严格判定头奖 (运气满值 10 且 骰子满值 20)
+            # 3. 严格判定头奖 (运气满值 10 且 骰子满值 20)
             if current_luck == 10 and lottery_dice == 20:
                 prize = 5000000 # 500万头奖
                 st.session_state.attributes["金钱"] += prize
-                st.session_state.attributes["心情"] = 100
+                st.session_state.attributes["健康"] = 100 # ✅ 暴富治百病，健康直接拉满
                 st.session_state.assets.append("头奖彩票金牌")
                 msg = f"""
                 🎉 **【奇迹降临！】** 你花了 20 元买了一张彩票。
                 **彩票骰子：{lottery_dice}** | **当前运气：{current_luck}**
                 
                 当开奖号码公布时，你揉了揉眼睛，不敢相信这是真的。
-                你中了 **¥{prize}** 头奖！命运的齿轮疯狂转动，你一夜暴富，心情达到了顶峰！
+                你中了 **¥{prize}** 头奖！命运的齿轮疯狂转动，你一夜暴富，激动的你感觉身体前所未有的健康！
                 """
             else:
-                st.session_state.attributes["心情"] -= 1 # 没中奖稍微扣点心情
+                st.session_state.attributes["健康"] -= 1 # ✅ 没中奖，气得血压升高，健康 -1
                 msg = f"""
                 💸 **【谢谢参与】** 你花了 20 元买了一张彩票。
                 **彩票骰子：{lottery_dice}** | **当前运气：{current_luck}**
                 
-                连个安慰奖都没有，20 块钱打了水漂。你要继续买，还是面对现实去解决眼前的麻烦？
+                连个安慰奖都没有，20 块钱打了水漂。你感到一阵胸闷（健康-1）。你要继续买，还是面对现实去解决眼前的麻烦？
                 """
             
             # 4. 把抽奖结果直接插入对话流中，并刷新页面
