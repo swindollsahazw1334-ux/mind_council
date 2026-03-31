@@ -781,18 +781,25 @@ elif st.session_state.stage == "GENERATE_EVENT":
         
         assets_display = ', '.join(st.session_state.assets) if st.session_state.assets else '无'
         
+        # ⚠️ 脑洞大开版：引入魔幻现实、哲学思辨与深度心理学
         event_prompt = f"""
-        你是一个深度的心理学人生模拟器。玩家当前 {st.session_state.age} 岁。
-        当前属性：家境 {st.session_state.attributes['家境']}, 天赋 {st.session_state.attributes['天赋']}, 运气 {st.session_state.attributes['运气']}, 努力 {st.session_state.attributes['努力']}, 健康 {st.session_state.attributes['健康']}
+        你是一个极具想象力的哲学与深度心理学人生模拟器引擎。玩家当前 {st.session_state.age} 岁。
+        当前属性：家境 {st.session_state.attributes['家境']}, 天赋 {st.session_state.attributes['天赋']}, 运气 {st.session_state.attributes['运气']}, 健康 {st.session_state.attributes['健康']}
         当前存款：¥{st.session_state.attributes['金钱']}
         拥有资产：{assets_display}
         
-        【核心生成法则】：
-        1. 聚焦心理与健康困境：事件围绕【人际关系、工作内卷、身体抱恙、原生家庭、生存压力】展开。
-        2. 如果健康较低（<50），必须生成与生病、意外、体力不支相关的负面事件！
+        【核心生成法则】（必须严格遵守）：
+        1. 拒绝平庸日常：绝对不要再生成普通的“被欺负、催交DDL、工作内卷、缺钱还债”等世俗无聊事件！
+        2. 天马行空与哲学思辨：请结合经典的哲学议题（如存在主义、缸中之脑、电车难题）或深度的心理学现象。事件必须带有“魔幻现实主义”、“诡异奇幻”或“软科幻”色彩，直击灵魂。
+        3. 灵感场景举例（随机参考，不要局限）：
+           - 凝视深渊：你发现周围的世界可能只是一个供高等生物观赏的旅游景点实验（楚门的世界感）。
+           - 跨物种对话：一只似乎拥有人类心智的流浪猫拦住你，向你发起关于动物伦理、自由意志与被凝视的灵魂拷问。
+           - 潜意识具象化：你突然获得了一种能力（或陷入幻觉），能直接看到路人头顶具象化的“心理防御机制”或“童年创伤”。
+           - 伦理困境：面临记忆消除、意识上传、或是用寿命换取金钱的神秘契约。
+        4. 结合状态：如果健康极低（<40），事件可以涉及濒死体验、肉体与灵魂剥离的幻觉。运气极低（<3）则可能遭遇超越常理的诡异厄运。
         
-        请生成一个符合该年龄段的【深度冲突事件】。
-        ⚠️ 严格控制在 80 字以内！直接描述发生了什么，以“你要怎么做？”结尾。绝对不要给选项。
+        请生成一个符合该年龄段心智的【极其离奇、极具哲学思辨性或魔幻现实感】的突发事件。
+        ⚠️ 规则：字数严格控制在 100 字以内！直接描述发生了什么诡异或深刻的事情，以“你要怎么做？”结尾。绝对不要给出选项。
         """
         event_text = call_llm(event_prompt, [])
         
