@@ -577,6 +577,7 @@ if st.session_state.stage == "INIT":
                 }
                 st.session_state.assets = [] 
                 st.session_state.age = 6
+                st.session_state.life_chapter = f"你的灵魂刚刚降生在【{st.session_state.attributes['出生地']}】，一切都是未知的。童年的你正处于懵懂之中。"
                 
                 report = f"""
                 （系统档案建立完毕）
@@ -638,6 +639,7 @@ if st.session_state.stage == "INIT":
                 }
                 st.session_state.assets = [] 
                 st.session_state.age = 6
+                st.session_state.life_chapter = f"带着前世的刻痕，你再次降生于【{st.session_state.attributes['出生地']}】。你的命运剧本已准备就绪。"
                 
                 report = f"""
                 （系统档案建立完毕）
@@ -804,23 +806,22 @@ elif st.session_state.stage == "GENERATE_EVENT":
         assets_display = ', '.join(st.session_state.assets) if st.session_state.assets else '无'
         
         # ⚠️ 写实深度版：千人千面、真实困境、伦理与心理思辨
+        # ⚠️ 传记叙事版：草蛇灰线，连贯的剧情与蝴蝶效应
         event_prompt = f"""
-        你是一个深度的社会学与心理学人生模拟器引擎。玩家当前 {st.session_state.age} 岁。
+        你是一位顶级的传记作家和人生叙事引擎。玩家当前 {st.session_state.age} 岁。
         当前属性：🌍 出生地【{st.session_state.attributes['出生地']}】, 家境 {st.session_state.attributes['家境']}/10, 天赋 {st.session_state.attributes['天赋']}/10, 运气 {st.session_state.attributes['运气']}/10, 努力 {st.session_state.attributes['努力']}/10, 健康 {st.session_state.attributes['健康']}/100
-        当前财富：¥{st.session_state.attributes['金钱']} (统一以购买力平价量化衡量)
+        当前财富：¥{st.session_state.attributes['金钱']}
         
-        【核心生成法则】（必须严格遵守）：
-        1. 强烈的地缘特色：事件必须极度贴合玩家的【出生地】！
-           - 若在“印度”：可能遭遇极端的种姓歧视、贫民窟基建危机或IT外包行业的残酷竞争。
-           - 若在“美国”：可能遭遇极其昂贵的医疗账单、枪支治安风险、或常青藤名校的精英教育博弈。
-           - 若在“日本/韩国”：极度压抑的职场前后辈文化、超高压应试教育或老龄化社会的孤独。
-           - 若在“北欧”：不用为钱发愁，但可能陷入无尽的冬日抑郁、虚无感和寻找人生意义的哲学困境。
-           - 若在“战乱地区”：防空警报、武装冲突、食物短缺等极端生存危机。
-        2. 千人千面：在地域特色的基础上，继续结合【家境】和【天赋】生成阶级特有事件。美国的财阀之子绝不会遭遇帮派枪战，印度的底层劳工绝不会去硅谷创业。
-        3. 聚焦深度现实与伦理两难：事件必须包含【现实利益】与【心理/道德/自我认同】的剧烈撕扯。
+        【前情提要（玩家过去的经历与后果）】：
+        {st.session_state.life_chapter}
         
-        请生成一个符合该年龄段心智的【极具地缘特色与现实痛点】的突发事件。
-        ⚠️ 规则：字数严格控制在 100 字以内！直接描述发生了什么，以“你要怎么做？”结尾。绝对不要给选项。
+        【叙事生成法则】（必须严格遵守）：
+        1. 承前启后（核心）：请严格基于【前情提要】中玩家过去的抉择，像写小说一样，用一两句话平滑地叙述这几年间发生的过渡与变化。
+        2. 蝴蝶效应：之前的选择必须在现在产生长远的涟漪。比如之前为了钱妥协，现在可能面临良心的反噬或更大的利益旋涡；之前努力学习，现在可能面临职场的阶级天花板。
+        3. 顺势引出新危机：在简短的回顾后，结合玩家的【出生地】和【家境】，自然而然地引出这个年龄段面临的一个全新的【现实痛点与伦理两难事件】。
+        
+        请生成一段连贯的传记叙事。
+        ⚠️ 规则：字数控制在 150 字左右。前半段是前情续写与岁月流逝，后半段是突发的全新冲突，最后以“你要怎么做？”结尾。绝对不要给选项。
         """
         event_text = call_llm(event_prompt, [])
         
@@ -914,7 +915,7 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
         【健康变动】：（填带正负号的数字，如 -10 或 +5）
         【金钱变动】：（必须填带正负号的完整数字，绝不能包含“万”字！如 -140000 或 +5000）
         【新增资产】：（填资产名称，无则填“无”）
-        【命运点评】：（严格控制在60字以内！用一句心理分析的话，精炼概括该选择带来的内在影响与现实后果。）
+        【命运点评】：（严格控制在80字以内！用传记作家的口吻，精炼描述玩家的这个决定立刻引发了怎样的现实后果，这段话将作为下一段人生故事的铺垫。）
         """
         verdict = call_llm(judge_prompt, [])
         
@@ -944,6 +945,8 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
         # ✅ 新增：锁死家境和努力的上下限 (0-10)
         st.session_state.attributes["家境"] = max(0, min(10, st.session_state.attributes["家境"]))
         st.session_state.attributes["努力"] = max(0, min(10, st.session_state.attributes["努力"]))
+        
+        st.session_state.life_chapter = comment
         
         # E. 展示给玩家看
         assets_display = ', '.join(st.session_state.assets) if st.session_state.assets else '无'
