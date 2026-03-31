@@ -696,10 +696,11 @@ elif st.session_state.stage == "MAINTENANCE":
     with st.form("survival_form"):
         st.write("🍽️ **必须选择本期的饮食标准** (关乎生死！)：")
         food_choice = st.radio("饮食选项：", [
+            "【忍饥挨饿】¥0 (极度虚弱，健康 -10)",      # ✅ 新增：不花钱但大扣血的绝境选项
             "【廉价果腹】¥1,000 (营养不良，健康 -5)", 
             "【平价日常】¥5,000 (粗茶淡饭，健康不变)", 
             "【高档食补】¥15,000 (营养均衡，健康 +5)"
-        ], index=1)
+        ], index=2) # 默认选中第三项（平价日常）
         
         st.write("🏋️ **额外健康管理** (可选)：")
         gym_choice = st.checkbox("【办高档健身卡】¥8,000 (挥汗如雨，大量恢复：健康 +10)")
@@ -707,8 +708,20 @@ elif st.session_state.stage == "MAINTENANCE":
         submit_btn = st.form_submit_button("💳 支付并开启新的一年")
         
         if submit_btn:
-            food_cost = 1000 if "廉价" in food_choice else (5000 if "平价" in food_choice else 15000)
-            food_health = -5 if "廉价" in food_choice else (0 if "平价" in food_choice else 5)
+            # ✅ 更新：使用清晰的 if-elif 结构来解析 4 种饮食的花销和健康变动
+            if "忍饥" in food_choice:
+                food_cost = 0
+                food_health = -10
+            elif "廉价" in food_choice:
+                food_cost = 1000
+                food_health = -5
+            elif "平价" in food_choice:
+                food_cost = 5000
+                food_health = 0
+            else: # 高档
+                food_cost = 15000
+                food_health = 5
+                
             gym_cost = 8000 if gym_choice else 0
             gym_health = 10 if gym_choice else 0
             
