@@ -407,55 +407,63 @@ if "attributes" not in st.session_state: st.session_state.attributes = {}
 if "game_over" not in st.session_state: st.session_state.game_over = False
 
 
-def render_chat():
+# ✅ 修改点 1：让渲染器接收左右两列作为参数，并进行智能路由
+def render_chat(left_container, right_container):
     for msg in st.session_state.history:
         role = msg["role"]
         text = msg["content"]
         
-        # 角色配置映射：(CSS类后缀, 图标, 塔罗称号)
-        role_map = {
-            "user": ("user", "👤", "THE FOOL (提问者)"),
-            "detective": ("detective", "🕯️", "THE HERMIT (隐士·侧写师)"),
-            "rational": ("rational", "⚔️", "KING of SWORDS (宝剑国王·理性)"),
-            "emotional": ("emotional", "🍷", "QUEEN of CUPS (圣杯皇后·情绪)"),
-            "conservative": ("conservative", "🪙", "KNIGHT of PENTACLES (钱币骑士·保守)"),
-            "adventure": ("adventure", "🔥", "KNIGHT of WANDS (权杖骑士·冒险)"),
-        }
-        
-        # ✅ 新增：手写 Markdown 转 HTML 解析器，消除满屏的星号！
-        safe_text = text
-        # 1. 转换引用块 (给游戏结束时的史官判词使用)
-        safe_text = re.sub(r'^>\s?(.*)', r'<div style="border-left: 3px solid #5a3e7d; padding-left: 10px; margin: 10px 0; color: #b3a0c4; font-style: italic;">\1</div>', safe_text, flags=re.MULTILINE)
-        # 2. 转换加粗 (**字**) -> 替换为 HTML <b> 标签，并提亮为纯白色
-        safe_text = re.sub(r'\*\*(.*?)\*\*', r'<b style="color: #FFFFFF; text-shadow: 0 0 5px rgba(255,255,255,0.3);">\1</b>', safe_text)
-        # 3. 转换斜体 (*字*) -> 替换为 HTML <i> 标签，稍微降低透明度
-        safe_text = re.sub(r'\*(.*?)\*', r'<i style="opacity: 0.7;">\1</i>', safe_text)
-        # 4. 最后处理换行
-        safe_text = safe_text.replace("\n", "<br>")
-
+        # 🌟 核心路由规则：判断这段内容该放左边还是右边？
+        is_right_side = False
         if role == "ferryman":
-            # 摆渡人特殊卡片
-            st.markdown(f"""
-            <div class="ferryman-card">
-                <div style="text-align:center; color:#FFD700; margin-bottom:20px; letter-spacing:2px; font-size:0.8em;">
-                    WHEEL OF FORTUNE (命运之轮·摆渡人)
-                </div>
-                <div class="ferryman-text">{safe_text}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        else:
-            # 普通角色卡片
-            css_suffix, icon, title = role_map.get(role, ("user", "👤", "USER"))
+            is_right_side = True
+        # 捕捉所有的骰子判定、属性报告和结局判词到右侧
+        elif "🎲 命运判定" in text or "初始属性面板" in text or "THE END" in text or "命运史官的判词" in text:
+            is_right_side = True
             
-            st.markdown(f"""
-            <div class="chat-row">
-                <div class="avatar">{icon}</div>
-                <div class="bubble {css_suffix}-bub">
-                    <div class="role-title {css_suffix}-title">{title}</div>
-                    <div>{safe_text}</div>
+        target_container = right_container if is_right_side else left_container
+        
+        # 将内容渲染到对应的列中
+        with target_container:
+            
+            # 手写 Markdown 转 HTML 解析器，消除满屏的星号
+            safe_text = text
+            safe_text = re.sub(r'^>\s?(.*)', r'<div style="border-left: 3px solid #5a3e7d; padding-left: 10px; margin: 10px 0; color: #b3a0c4; font-style: italic;">\1</div>', safe_text, flags=re.MULTILINE)
+            safe_text = re.sub(r'\*\*(.*?)\*\*', r'<b style="color: #FFFFFF; text-shadow: 0 0 5px rgba(255,255,255,0.3);">\1</b>', safe_text)
+            safe_text = re.sub(r'\*(.*?)\*', r'<i style="opacity: 0.7;">\1</i>', safe_text)
+            safe_text = safe_text.replace("\n", "<br>")
+
+            # 角色配置映射
+            role_map = {
+                "user": ("user", "👤", "THE FOOL (提问者)"),
+                "detective": ("detective", "🕯️", "THE HERMIT (隐士·侧写师)"),
+                "rational": ("rational", "⚔️", "KING of SWORDS (宝剑国王·理性)"),
+                "emotional": ("emotional", "🍷", "QUEEN of CUPS (圣杯皇后·情绪)"),
+                "conservative": ("conservative", "🪙", "KNIGHT of PENTACLES (钱币骑士·保守)"),
+                "adventure": ("adventure", "🔥", "KNIGHT of WANDS (权杖骑士·冒险)"),
+            }
+
+            if role == "ferryman":
+                st.markdown(f"""
+                <div class="ferryman-card">
+                    <div style="text-align:center; color:#FFD700; margin-bottom:20px; letter-spacing:2px; font-size:0.8em;">
+                        WHEEL OF FORTUNE (命运之轮·摆渡人)
+                    </div>
+                    <div class="ferryman-text">{safe_text}</div>
                 </div>
-            </div>
-            """, unsafe_allow_html=True)
+                """, unsafe_allow_html=True)
+            else:
+                css_suffix, icon, title = role_map.get(role, ("user", "👤", "USER"))
+                st.markdown(f"""
+                <div class="chat-row">
+                    <div class="avatar">{icon}</div>
+                    <div class="bubble {css_suffix}-bub">
+                        <div class="role-title {css_suffix}-title">{title}</div>
+                        <div>{safe_text}</div>
+                    </div>
+                </div>
+                """, unsafe_allow_html=True)
+
 # ==========================================
 # 4. 主程序 (顶部导航栏版)
 # ==========================================
@@ -472,21 +480,35 @@ with st.container():
             st.session_state.clear()
             st.rerun()
 
-st.markdown("---") # 加一条分割线，区分控制区和聊天区
-render_chat()
+st.markdown("---") 
+
+# ✅ 修改点 2：建立左右布局，比例设定为 1.5 : 1 (左侧人生故事稍宽一点)
+left_col, right_col = st.columns([1.5, 1], gap="large")
+
+with left_col:
+    # 增加一个小标题提升仪式感
+    st.markdown("<h4 style='color: #87CEEB; margin-top: 0; border-bottom: 1px solid rgba(135,206,235,0.3); padding-bottom: 10px;'>📖 人生轨迹与抉择</h4>", unsafe_allow_html=True)
+
+with right_col:
+    st.markdown("<h4 style='color: #FFD700; margin-top: 0; border-bottom: 1px solid rgba(255,215,0,0.3); padding-bottom: 10px;'>⚖️ 命运与裁决日志</h4>", unsafe_allow_html=True)
+
+# 将刚刚创建的两列传给渲染函数，让它各自归位！
+render_chat(left_col, right_col)
+
 # --- 游戏互动区：彩票系统与输入框 ---
 if st.session_state.stage == "AWAIT_CHOICE":
     
     # 🎰 彩票系统：成年后且没破产才能买
     if st.session_state.age >= 18 and st.session_state.attributes["金钱"] >= 20:
-        if st.button("🎫 买彩票 (¥20) - 搏一搏，单车变摩托！", use_container_width=True):
-            
-            # 1. 扣除彩票钱
-            st.session_state.attributes["金钱"] -= 20
-            
-            # 2. 独立抛掷彩票专用骰子
-            lottery_dice = random.randint(1, 20)
-            current_luck = st.session_state.attributes["运气"]
+        with left_col: # ✅
+            if st.button("🎫 买彩票 (¥20) - 搏一搏，单车变摩托！", use_container_width=True):
+                
+                # 1. 扣除彩票钱
+                st.session_state.attributes["金钱"] -= 20
+                
+                # 2. 独立抛掷彩票专用骰子
+                lottery_dice = random.randint(1, 20)
+                current_luck = st.session_state.attributes["运气"]
             
             # 3. 严格判定头奖 (运气满值 10 且 骰子满值 20)
             if current_luck == 10 and lottery_dice == 20:
@@ -535,58 +557,59 @@ else:
 # --- 状态机 ---
 # 1. 投胎大厅 (初始化属性)
 if st.session_state.stage == "INIT":
-    st.markdown("<h3 style='text-align: center; color: #FFD700; margin-top: 20px;'>🌌 灵魂转生枢纽</h3>", unsafe_allow_html=True)
-    st.info("👋 欢迎来到潜意识模拟器。你可以选择听从命运的安排，或是自己定制灵魂的底色。")
-    
-    tab1, tab2 = st.tabs(["🎲 听天由命 (随机抽取)", "✍️ 逆天改命 (自定义属性)"])
-    
-    # ==================================
-    # 模式 1：原本的随机抽卡模式
-    # ==================================
-    with tab1:
-        st.write("系统将根据现实社会的真实阶级与全球人口分布，为你随机分配命格。")
-        if st.button("🎲 抽取命格，开始新的人生", use_container_width=True):
-            with st.spinner("命运齿轮开始转动..."):
-                time.sleep(1)
-                
-                # 🌍 1. 新增：全球国籍/出生地抽卡 (按现实人口比例大致划分权重)
-                regions = ["中国", "印度", "美国", "北欧高福利国", "拉美地区", "非洲", "战乱地区", "日本/韩国"]
-                region_weights = [18.0, 18.0, 4.0, 0.5, 8.0, 15.0, 2.0, 2.5]
-                rolled_region = random.choices(regions, weights=region_weights, k=1)[0]
+    with left_col: # ✅
+        st.markdown("<h3 style='text-align: center; color: #FFD700; margin-top: 20px;'>🌌 灵魂转生枢纽</h3>", unsafe_allow_html=True)
+        st.info("👋 欢迎来到潜意识模拟器。你可以选择听从命运的安排，或是自己定制灵魂的底色。")
+        
+        tab1, tab2 = st.tabs(["🎲 听天由命 (随机抽取)", "✍️ 逆天改命 (自定义属性)"])
+        
+        # ==================================
+        # 模式 1：原本的随机抽卡模式
+        # ==================================
+        with tab1:
+            st.write("系统将根据现实社会的真实阶级与全球人口分布，为你随机分配命格。")
+            if st.button("🎲 抽取命格，开始新的人生", use_container_width=True):
+                with st.spinner("命运齿轮开始转动..."):
+                    time.sleep(1)
+                    
+                    # 🌍 1. 新增：全球国籍/出生地抽卡 (按现实人口比例大致划分权重)
+                    regions = ["中国", "印度", "美国", "北欧高福利国", "拉美地区", "非洲", "战乱地区", "日本/韩国"]
+                    region_weights = [18.0, 18.0, 4.0, 0.5, 8.0, 15.0, 2.0, 2.5]
+                    rolled_region = random.choices(regions, weights=region_weights, k=1)[0]
 
-                # 2. 真实社会阶级概率抽取
-                bg_levels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
-                bg_weights = [10.0, 20.0, 30.0, 20.0, 10.0, 5.0, 3.0, 1.5, 0.4, 0.1]
-                rolled_bg = random.choices(bg_levels, weights=bg_weights, k=1)[0]
-                
-                initial_money_map = {
-                    1: 0, 2: 50, 3: 200, 4: 800, 5: 3000, 
-                    6: 10000, 7: 50000, 8: 200000, 9: 500000, 10: 1000000
-                }
-                initial_money = initial_money_map[rolled_bg] + random.randint(-10, 50)
-                if initial_money < 0: initial_money = 0
-                
-                st.session_state.attributes = {
-                    "出生地": rolled_region, # ✅ 写入出生地
-                    "家境": rolled_bg, 
-                    "天赋": random.randint(2, 9),
-                    "运气": random.randint(1, 10),
-                    "努力": random.randint(4, 8),
-                    "健康": 80,
-                    "金钱": initial_money 
-                }
-                st.session_state.assets = [] 
-                st.session_state.age = 6
-                st.session_state.life_chapter = f"你的灵魂刚刚降生在【{st.session_state.attributes['出生地']}】，一切都是未知的。童年的你正处于懵懂之中。"
-                
-                report = f"""
-                （系统档案建立完毕）
-                **初始年龄**: {st.session_state.age} 岁
-                **开局模式**: 听天由命 (随机生成)
-                
-                📊 **初始属性面板**：
-                🌍 出生地：【{st.session_state.attributes['出生地']}】
-                🏠 家境：{st.session_state.attributes['家境']} / 10 | ✨ 天赋：{st.session_state.attributes['天赋']} / 10
+                    # 2. 真实社会阶级概率抽取
+                    bg_levels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
+                    bg_weights = [10.0, 20.0, 30.0, 20.0, 10.0, 5.0, 3.0, 1.5, 0.4, 0.1]
+                    rolled_bg = random.choices(bg_levels, weights=bg_weights, k=1)[0]
+                    
+                    initial_money_map = {
+                        1: 0, 2: 50, 3: 200, 4: 800, 5: 3000, 
+                        6: 10000, 7: 50000, 8: 200000, 9: 500000, 10: 1000000
+                    }
+                    initial_money = initial_money_map[rolled_bg] + random.randint(-10, 50)
+                    if initial_money < 0: initial_money = 0
+                    
+                    st.session_state.attributes = {
+                        "出生地": rolled_region, # ✅ 写入出生地
+                        "家境": rolled_bg, 
+                        "天赋": random.randint(2, 9),
+                        "运气": random.randint(1, 10),
+                        "努力": random.randint(4, 8),
+                        "健康": 80,
+                        "金钱": initial_money 
+                    }
+                    st.session_state.assets = [] 
+                    st.session_state.age = 6
+                    st.session_state.life_chapter = f"你的灵魂刚刚降生在【{st.session_state.attributes['出生地']}】，一切都是未知的。童年的你正处于懵懂之中。"
+                    
+                    report = f"""
+                    （系统档案建立完毕）
+                    **初始年龄**: {st.session_state.age} 岁
+                    **开局模式**: 听天由命 (随机生成)
+                    
+                    📊 **初始属性面板**：
+                    🌍 出生地：【{st.session_state.attributes['出生地']}】
+                    🏠 家境：{st.session_state.attributes['家境']} / 10 | ✨ 天赋：{st.session_state.attributes['天赋']} / 10
                 🍀 运气：{st.session_state.attributes['运气']} / 10 | 💪 努力：{st.session_state.attributes['努力']} / 10
                 ❤️ 健康：{st.session_state.attributes['健康']} / 100
                 💰 财富：¥{st.session_state.attributes['金钱']} (已自动换算为购买力等值量)
@@ -599,67 +622,67 @@ if st.session_state.stage == "INIT":
                 st.session_state.stage = "MAINTENANCE"
                 st.rerun()
 
-    # ==================================
-    # 模式 2：全新的自定义属性模式
-    # ==================================
-    with tab2:
-        st.write("自行设定灵魂的核心属性（使用滑块调整）：")
-        
-        # ✅ 新增：允许玩家手动选择出生地
-        custom_region = st.selectbox("🌍 选择出生地 (决定你的文化与社会背景)：", 
-            ["中国", "美国", "印度", "北欧高福利国", "拉美地区", "非洲", "战乱地区", "日本/韩国"])
+        # ==================================
+        # 模式 2：全新的自定义属性模式
+        # ==================================
+        with tab2:
+            st.write("自行设定灵魂的核心属性（使用滑块调整）：")
             
-        col1, col2 = st.columns(2)
-        with col1:
-            custom_bg = st.slider("🏠 家境 (1=赤贫, 10=财阀)", min_value=1, max_value=10, value=5)
-            custom_talent = st.slider("✨ 天赋 (0=平庸, 10=天才)", min_value=0, max_value=10, value=5)
-        with col2:
-            custom_luck = st.slider("🍀 运气 (1=天谴, 10=天选)", min_value=1, max_value=10, value=5)
-            custom_effort = st.slider("💪 努力 (0=摆烂, 10=内卷)", min_value=0, max_value=10, value=5)
-            
-        if st.button("✨ 锁定命格，开始定制人生", use_container_width=True):
-            with st.spinner("正在为你重塑灵魂..."):
-                time.sleep(1)
+            # ✅ 新增：允许玩家手动选择出生地
+            custom_region = st.selectbox("🌍 选择出生地 (决定你的文化与社会背景)：", 
+                ["中国", "美国", "印度", "北欧高福利国", "拉美地区", "非洲", "战乱地区", "日本/韩国"])
                 
-                initial_money_map = {
-                    1: 0, 2: 50, 3: 200, 4: 800, 5: 3000, 
-                    6: 10000, 7: 50000, 8: 200000, 9: 500000, 10: 1000000
-                }
-                initial_money = initial_money_map[custom_bg] + random.randint(-10, 50)
-                if initial_money < 0: initial_money = 0
+            col1, col2 = st.columns(2)
+            with col1:
+                custom_bg = st.slider("🏠 家境 (1=赤贫, 10=财阀)", min_value=1, max_value=10, value=5)
+                custom_talent = st.slider("✨ 天赋 (0=平庸, 10=天才)", min_value=0, max_value=10, value=5)
+            with col2:
+                custom_luck = st.slider("🍀 运气 (1=天谴, 10=天选)", min_value=1, max_value=10, value=5)
+                custom_effort = st.slider("💪 努力 (0=摆烂, 10=内卷)", min_value=0, max_value=10, value=5)
                 
-                st.session_state.attributes = {
-                    "出生地": custom_region, # ✅ 写入自定义的出生地
-                    "家境": custom_bg, 
-                    "天赋": custom_talent,
-                    "运气": custom_luck,
-                    "努力": custom_effort,
-                    "健康": 80,
-                    "金钱": initial_money 
-                }
-                st.session_state.assets = [] 
-                st.session_state.age = 6
-                st.session_state.life_chapter = f"带着前世的刻痕，你再次降生于【{st.session_state.attributes['出生地']}】。你的命运剧本已准备就绪。"
-                
-                report = f"""
-                （系统档案建立完毕）
-                **初始年龄**: {st.session_state.age} 岁
-                **开局模式**: 逆天改命 (完全定制)
-                
-                📊 **初始属性面板**：
-                🌍 出生地：【{st.session_state.attributes['出生地']}】
-                🏠 家境：{st.session_state.attributes['家境']} / 10 | ✨ 天赋：{st.session_state.attributes['天赋']} / 10
-                🍀 运气：{st.session_state.attributes['运气']} / 10 | 💪 努力：{st.session_state.attributes['努力']} / 10
-                ❤️ 健康：{st.session_state.attributes['健康']} / 100
-                💰 财富：¥{st.session_state.attributes['金钱']} (已自动换算为购买力等值量)
-                🎒 资产：无
-                
-                你已亲手写下了自己的命运剧本，准备迎接人生吧。
-                """
-                
-                st.session_state.history.append({"role": "detective", "content": report.strip()})
-                st.session_state.stage = "MAINTENANCE"
-                st.rerun()
+            if st.button("✨ 锁定命格，开始定制人生", use_container_width=True):
+                with st.spinner("正在为你重塑灵魂..."):
+                    time.sleep(1)
+                    
+                    initial_money_map = {
+                        1: 0, 2: 50, 3: 200, 4: 800, 5: 3000, 
+                        6: 10000, 7: 50000, 8: 200000, 9: 500000, 10: 1000000
+                    }
+                    initial_money = initial_money_map[custom_bg] + random.randint(-10, 50)
+                    if initial_money < 0: initial_money = 0
+                    
+                    st.session_state.attributes = {
+                        "出生地": custom_region, # ✅ 写入自定义的出生地
+                        "家境": custom_bg, 
+                        "天赋": custom_talent,
+                        "运气": custom_luck,
+                        "努力": custom_effort,
+                        "健康": 80,
+                        "金钱": initial_money 
+                    }
+                    st.session_state.assets = [] 
+                    st.session_state.age = 6
+                    st.session_state.life_chapter = f"带着前世的刻痕，你再次降生于【{st.session_state.attributes['出生地']}】。你的命运剧本已准备就绪。"
+                    
+                    report = f"""
+                    （系统档案建立完毕）
+                    **初始年龄**: {st.session_state.age} 岁
+                    **开局模式**: 逆天改命 (完全定制)
+                    
+                    📊 **初始属性面板**：
+                    🌍 出生地：【{st.session_state.attributes['出生地']}】
+                    🏠 家境：{st.session_state.attributes['家境']} / 10 | ✨ 天赋：{st.session_state.attributes['天赋']} / 10
+                    🍀 运气：{st.session_state.attributes['运气']} / 10 | 💪 努力：{st.session_state.attributes['努力']} / 10
+                    ❤️ 健康：{st.session_state.attributes['健康']} / 100
+                    💰 财富：¥{st.session_state.attributes['金钱']} (已自动换算为购买力等值量)
+                    🎒 资产：无
+                    
+                    你已亲手写下了自己的命运剧本，准备迎接人生吧。
+                    """
+                    
+                    st.session_state.history.append({"role": "detective", "content": report.strip()})
+                    st.session_state.stage = "MAINTENANCE"
+                    st.rerun()
 
 # ==========================================
 # 游戏引擎循环
@@ -694,70 +717,71 @@ elif st.session_state.stage == "MAINTENANCE":
         st.session_state.income_source = source
         st.session_state.income_age = current_age
     
-    # 2. 渲染生存选择面板
-    st.markdown(f"""
-    <div class="ferryman-card" style="border-color: #4CAF50; box-shadow: 0 0 15px rgba(76, 175, 80, 0.2);">
-        <h3 style="color: #4CAF50; margin-top: 0; text-align: center;">📅 【{st.session_state.age}岁】 生存结算</h3>
-        <p style="text-align: center;">💰 <b>本期资金入账</b>：+{st.session_state.income_amount} ¥ ({st.session_state.income_source})</p>
-        <p style="text-align: center; font-size: 1.2em;">💳 <b>当前总存款</b>：¥{st.session_state.attributes["金钱"]}</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    # 3. 饥饿与健康表单
-    with st.form("survival_form"):
-        st.write("🍽️ **必须选择本期的饮食标准** (关乎生死！)：")
-        food_choice = st.radio("饮食选项：", [
-            "【忍饥挨饿】¥0 (极度虚弱，健康 -10)",      # ✅ 新增：不花钱但大扣血的绝境选项
-            "【廉价果腹】¥1,000 (营养不良，健康 -5)", 
-            "【平价日常】¥5,000 (粗茶淡饭，健康不变)", 
-            "【高档食补】¥15,000 (营养均衡，健康 +5)"
-        ], index=2) # 默认选中第三项（平价日常）
+    with left_col: # ✅
+        # 2. 渲染生存选择面板
+        st.markdown(f"""
+        <div class="ferryman-card" style="border-color: #4CAF50; box-shadow: 0 0 15px rgba(76, 175, 80, 0.2);">
+            <h3 style="color: #4CAF50; margin-top: 0; text-align: center;">📅 【{st.session_state.age}岁】 生存结算</h3>
+            <p style="text-align: center;">💰 <b>本期资金入账</b>：+{st.session_state.income_amount} ¥ ({st.session_state.income_source})</p>
+            <p style="text-align: center; font-size: 1.2em;">💳 <b>当前总存款</b>：¥{st.session_state.attributes["金钱"]}</p>
+        </div>
+        """, unsafe_allow_html=True)
         
-        st.write("🏋️ **额外健康管理** (可选)：")
-        gym_choice = st.checkbox("【办高档健身卡】¥8,000 (挥汗如雨，大量恢复：健康 +10)")
-        
-        submit_btn = st.form_submit_button("💳 支付并开启新的一年")
-        
-        if submit_btn:
-            # ✅ 更新：使用清晰的 if-elif 结构来解析 4 种饮食的花销和健康变动
-            if "忍饥" in food_choice:
-                food_cost = 0
-                food_health = -10
-            elif "廉价" in food_choice:
-                food_cost = 1000
-                food_health = -5
-            elif "平价" in food_choice:
-                food_cost = 5000
-                food_health = 0
-            else: # 高档
-                food_cost = 15000
-                food_health = 5
-                
-            gym_cost = 8000 if gym_choice else 0
-            gym_health = 10 if gym_choice else 0
+        # 3. 饥饿与健康表单
+        with st.form("survival_form"):
+            st.write("🍽️ **必须选择本期的饮食标准** (关乎生死！)：")
+            food_choice = st.radio("饮食选项：", [
+                "【忍饥挨饿】¥0 (极度虚弱，健康 -10)",      # ✅ 新增：不花钱但大扣血的绝境选项
+                "【廉价果腹】¥1,000 (营养不良，健康 -5)", 
+                "【平价日常】¥5,000 (粗茶淡饭，健康不变)", 
+                "【高档食补】¥15,000 (营养均衡，健康 +5)"
+            ], index=2) # 默认选中第三项（平价日常）
             
-            total_cost = food_cost + gym_cost
-            total_health_change = food_health + gym_health
+            st.write("🏋️ **额外健康管理** (可选)：")
+            gym_choice = st.checkbox("【办高档健身卡】¥8,000 (挥汗如雨，大量恢复：健康 +10)")
             
-            # 💀 饥饿/饿死判定
-            if st.session_state.attributes["金钱"] < food_cost:
-                st.session_state.attributes["健康"] = 0
-                st.session_state.stage = "GAME_OVER"
-                st.session_state.death_reason = f"存款不足以支付最廉价的食物 (缺口: ¥{food_cost - st.session_state.attributes['金钱']})。饥寒交迫中，你活活饿死在了街头..."
-            else:
-                st.session_state.attributes["金钱"] -= total_cost
-                st.session_state.attributes["健康"] += total_health_change
-                if st.session_state.attributes["健康"] > 100: st.session_state.attributes["健康"] = 100
+            submit_btn = st.form_submit_button("💳 支付并开启新的一年")
+            
+            if submit_btn:
+                # ✅ 更新：使用清晰的 if-elif 结构来解析 4 种饮食的花销和健康变动
+                if "忍饥" in food_choice:
+                    food_cost = 0
+                    food_health = -10
+                elif "廉价" in food_choice:
+                    food_cost = 1000
+                    food_health = -5
+                elif "平价" in food_choice:
+                    food_cost = 5000
+                    food_health = 0
+                else: # 高档
+                    food_cost = 15000
+                    food_health = 5
+                    
+                gym_cost = 8000 if gym_choice else 0
+                gym_health = 10 if gym_choice else 0
                 
-                summary = f"**【{st.session_state.age}岁 生存账单】**\n"
-                summary += f"💵 收入：+{st.session_state.income_amount} ({st.session_state.income_source})\n"
-                summary += f"💸 支出：-{total_cost} (饮食与健康管理)\n"
-                summary += f"❤️ 健康变动：{total_health_change:+} (当前健康: {st.session_state.attributes['健康']}/100)"
-                st.session_state.history.append({"role": "detective", "content": summary})
+                total_cost = food_cost + gym_cost
+                total_health_change = food_health + gym_health
                 
-                # 结算完毕，进入当年的随机事件！
-                st.session_state.stage = "GENERATE_EVENT"
-            st.rerun()
+                # 💀 饥饿/饿死判定
+                if st.session_state.attributes["金钱"] < food_cost:
+                    st.session_state.attributes["健康"] = 0
+                    st.session_state.stage = "GAME_OVER"
+                    st.session_state.death_reason = f"存款不足以支付最廉价的食物 (缺口: ¥{food_cost - st.session_state.attributes['金钱']})。饥寒交迫中，你活活饿死在了街头..."
+                else:
+                    st.session_state.attributes["金钱"] -= total_cost
+                    st.session_state.attributes["健康"] += total_health_change
+                    if st.session_state.attributes["健康"] > 100: st.session_state.attributes["健康"] = 100
+                    
+                    summary = f"**【{st.session_state.age}岁 生存账单】**\n"
+                    summary += f"💵 收入：+{st.session_state.income_amount} ({st.session_state.income_source})\n"
+                    summary += f"💸 支出：-{total_cost} (饮食与健康管理)\n"
+                    summary += f"❤️ 健康变动：{total_health_change:+} (当前健康: {st.session_state.attributes['健康']}/100)"
+                    st.session_state.history.append({"role": "detective", "content": summary})
+                    
+                    # 结算完毕，进入当年的随机事件！
+                    st.session_state.stage = "GENERATE_EVENT"
+                st.rerun()
 
 # --- 这里是你原本的生成事件代码 ---
 
@@ -801,35 +825,36 @@ elif st.session_state.stage == "GENERATE_EVENT":
         st.rerun()
 
     # 👻 2. 如果成功生还，继续生成本年度的事件
-    with st.spinner(f"正在生成 {st.session_state.age} 岁的命运... (当前意外致死率: {total_death_prob:.2f}%)"):
-        
-        assets_display = ', '.join(st.session_state.assets) if st.session_state.assets else '无'
-        
-        # ⚠️ 写实深度版：千人千面、真实困境、伦理与心理思辨
-        # ⚠️ 传记叙事版：草蛇灰线，连贯的剧情与蝴蝶效应
-        event_prompt = f"""
-        你是一位顶级的传记作家和人生叙事引擎。玩家当前 {st.session_state.age} 岁。
-        当前属性：🌍 出生地【{st.session_state.attributes['出生地']}】, 家境 {st.session_state.attributes['家境']}/10, 天赋 {st.session_state.attributes['天赋']}/10, 运气 {st.session_state.attributes['运气']}/10, 努力 {st.session_state.attributes['努力']}/10, 健康 {st.session_state.attributes['健康']}/100
-        当前财富：¥{st.session_state.attributes['金钱']}
-        
-        【前情提要（玩家过去的经历与后果）】：
-        {st.session_state.life_chapter}
-        
-        【叙事生成法则】（必须严格遵守）：
-        1. 承前启后（核心）：请严格基于【前情提要】中玩家过去的抉择，像写小说一样，用一两句话平滑地叙述这几年间发生的过渡与变化。
-        2. 蝴蝶效应：之前的选择必须在现在产生长远的涟漪。比如之前为了钱妥协，现在可能面临良心的反噬或更大的利益旋涡；之前努力学习，现在可能面临职场的阶级天花板。
-        3. 顺势引出新危机：在简短的回顾后，结合玩家的【出生地】和【家境】，自然而然地引出这个年龄段面临的一个全新的【现实痛点与伦理两难事件】。
-        
-        请生成一段连贯的传记叙事。
-        ⚠️ 规则：字数控制在 150 字左右。前半段是前情续写与岁月流逝，后半段是突发的全新冲突，最后以“你要怎么做？”结尾。绝对不要给选项。
-        """
-        event_text = call_llm(event_prompt, [])
-        
-        # 在前端显示今年的致死率，拉满压迫感
-        st.session_state.history.append({"role": "detective", "content": f"**【{st.session_state.age}岁】** *(当年死亡风险: {total_death_prob:.2f}%*)\n{event_text}"})
-        st.session_state.current_event = event_text
-        st.session_state.stage = "AWAIT_CHOICE"
-        st.rerun()
+    with left_col: # ✅
+        with st.spinner(f"正在生成 {st.session_state.age} 岁的命运... (当前意外致死率: {total_death_prob:.2f}%)"):
+            
+            assets_display = ', '.join(st.session_state.assets) if st.session_state.assets else '无'
+            
+            # ⚠️ 写实深度版：千人千面、真实困境、伦理与心理思辨
+            # ⚠️ 传记叙事版：草蛇灰线，连贯的剧情与蝴蝶效应
+            event_prompt = f"""
+            你是一位顶级的传记作家和人生叙事引擎。玩家当前 {st.session_state.age} 岁。
+            当前属性：🌍 出生地【{st.session_state.attributes['出生地']}】, 家境 {st.session_state.attributes['家境']}/10, 天赋 {st.session_state.attributes['天赋']}/10, 运气 {st.session_state.attributes['运气']}/10, 努力 {st.session_state.attributes['努力']}/10, 健康 {st.session_state.attributes['健康']}/100
+            当前财富：¥{st.session_state.attributes['金钱']}
+            
+            【前情提要（玩家过去的经历与后果）】：
+            {st.session_state.life_chapter}
+            
+            【叙事生成法则】（必须严格遵守）：
+            1. 承前启后（核心）：请严格基于【前情提要】中玩家过去的抉择，像写小说一样，用一两句话平滑地叙述这几年间发生的过渡与变化。
+            2. 蝴蝶效应：之前的选择必须在现在产生长远的涟漪。比如之前为了钱妥协，现在可能面临良心的反噬或更大的利益旋涡；之前努力学习，现在可能面临职场的阶级天花板。
+            3. 顺势引出新危机：在简短的回顾后，结合玩家的【出生地】和【家境】，自然而然地引出这个年龄段面临的一个全新的【现实痛点与伦理两难事件】。
+            
+            请生成一段连贯的传记叙事。
+            ⚠️ 规则：字数控制在 150 字左右。前半段是前情续写与岁月流逝，后半段是突发的全新冲突，最后以“你要怎么做？”结尾。绝对不要给选项。
+            """
+            event_text = call_llm(event_prompt, [])
+            
+            # 在前端显示今年的致死率，拉满压迫感
+            st.session_state.history.append({"role": "detective", "content": f"**【{st.session_state.age}岁】** *(当年死亡风险: {total_death_prob:.2f}%*)\n{event_text}"})
+            st.session_state.current_event = event_text
+            st.session_state.stage = "AWAIT_CHOICE"
+            st.rerun()
 
 # 3. ⏳ 等待玩家输入 (由修改位置 1 的 st.chat_input 触发)
 elif st.session_state.stage == "AWAIT_CHOICE":
@@ -841,10 +866,11 @@ elif st.session_state.stage == "AWAIT_CHOICE":
 
 # 3.5 🎲 命运骰子判定 (D20 TRPG 系统)
 elif st.session_state.stage == "ROLL_DICE":
-    with st.spinner("🎲 命运骰子滚动中..."):
-        time.sleep(1.5)
-        
-        # 基础 D20 骰子 (1-20)
+    with right_col: # ✅ 骰子放到右边去转
+        with st.spinner("🎲 命运骰子滚动中..."):
+            time.sleep(1.5)
+            
+            # 基础 D20 骰子 (1-20)
         base_roll = random.randint(1, 20)
         
         # 运气修正值：运气5点是平均值(不加不减)，运气10加5，运气1减4
@@ -886,9 +912,10 @@ elif st.session_state.stage == "ROLL_DICE":
 
 # 4. ⚖️ 极速命运结算
 elif st.session_state.stage == "FERRYMAN_JUDGE":
-    with st.spinner("命运结算中..."):
-        
-        judge_prompt = f"""
+    with right_col: # ✅ 摆渡人放到右边去思考
+        with st.spinner("命运结算中..."):
+            
+            judge_prompt = f"""
         你是洞察人心的命运摆渡人和心理分析师。
         【当前事件】：{st.session_state.current_event}
         【玩家的选择】："{st.session_state.user_choice}"
@@ -917,9 +944,9 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
         【新增资产】：（填资产名称，无则填“无”）
         【命运点评】：（严格控制在80字以内！用传记作家的口吻，精炼描述玩家的这个决定立刻引发了怎样的现实后果，这段话将作为下一段人生故事的铺垫。）
         """
-        verdict = call_llm(judge_prompt, [])
-        
-        # C. 精准剥离（去掉了天赋和运气）
+            verdict = call_llm(judge_prompt, [])
+            
+            # C. 精准剥离（去掉了天赋和运气）
         try:
             faction_match = re.search(r'【判定倾向】：(.*)', verdict).group(1).strip()
             bg_delta = int(re.search(r'【家境变动】：([+-]?\d+)', verdict).group(1))
@@ -976,28 +1003,29 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
 elif st.session_state.stage == "GAME_OVER":
     if "over_reported" not in st.session_state:
         # 🌟 核心新增：调用大模型生成一生回顾！
-        with st.spinner("⏳ 命运的羽毛笔正在为你撰写一生的传记..."):
-            
-            assets_display = ', '.join(st.session_state.assets) if st.session_state.assets else '无'
-            
-            epitaph_prompt = f"""
-            你是一位见证无数灵魂起落的命运史官。玩家刚刚结束了他在模拟器中的一生。
-            🌍 【出生地】：{st.session_state.attributes['出生地']}
-            【终年】：{st.session_state.age} 岁
-            【死因】：{st.session_state.death_reason}
-            【最终属性】：家境 {st.session_state.attributes['家境']}/10, 天赋 {st.session_state.attributes['天赋']}/10, 运气 {st.session_state.attributes['运气']}/10, 努力 {st.session_state.attributes['努力']}/10, 财富 ¥{st.session_state.attributes['金钱']}
-            【生前资产】：{assets_display}
-            
-            请结合这些冰冷的数据和玩家的死因，为他撰写一段【人生走马灯与最终判词】。
-            【写作要求】：
-            1. 语气深沉、悲悯或带有一丝讽刺，充满宿命感与文学性。
-            2. 综合评价他这一生。必须结合他的【出生地】的宏观环境！例如：在印度的种姓泥沼中挣扎、在北欧的高福利下抑郁而终、或者在美利坚的资本浪潮中被粉碎。
-            3. 结尾给出一句简短深刻的【墓志铭】。
-            4. 字数严格控制在 200 字左右。
-            """
-            
-            # 提高温度(0.9)让判词更具文学性和随机性
-            epitaph_text = call_llm(epitaph_prompt, [], temperature=0.9)
+        with right_col: # ✅ 史官写字放右边
+            with st.spinner("⏳ 命运的羽毛笔正在为你撰写一生的传记..."):
+                
+                assets_display = ', '.join(st.session_state.assets) if st.session_state.assets else '无'
+                
+                epitaph_prompt = f"""
+                你是一位见证无数灵魂起落的命运史官。玩家刚刚结束了他在模拟器中的一生。
+                🌍 【出生地】：{st.session_state.attributes['出生地']}
+                【终年】：{st.session_state.age} 岁
+                【死因】：{st.session_state.death_reason}
+                【最终属性】：家境 {st.session_state.attributes['家境']}/10, 天赋 {st.session_state.attributes['天赋']}/10, 运气 {st.session_state.attributes['运气']}/10, 努力 {st.session_state.attributes['努力']}/10, 财富 ¥{st.session_state.attributes['金钱']}
+                【生前资产】：{assets_display}
+                
+                请结合这些冰冷的数据和玩家的死因，为他撰写一段【人生走马灯与最终判词】。
+                【写作要求】：
+                1. 语气深沉、悲悯或带有一丝讽刺，充满宿命感与文学性。
+                2. 综合评价他这一生。必须结合他的【出生地】的宏观环境！例如：在印度的种姓泥沼中挣扎、在北欧的高福利下抑郁而终、或者在美利坚的资本浪潮中被粉碎。
+                3. 结尾给出一句简短深刻的【墓志铭】。
+                4. 字数严格控制在 200 字左右。
+                """
+                
+                # 提高温度(0.9)让判词更具文学性和随机性
+                epitaph_text = call_llm(epitaph_prompt, [], temperature=0.9)
             
         final_report = f"""
         <div style="text-align:center; font-size:1.5em; margin-bottom:15px; color:#FF6B6B;">
@@ -1022,8 +1050,9 @@ elif st.session_state.stage == "GAME_OVER":
         
     if user_input:
         st.session_state.history.append({"role": "user", "content": user_input})
-        with st.spinner("🌊 摆渡人正在倾听你的不甘..."):
-            ctx = f"你生前的判词是：{st.session_state.history[-2]['content']}\n现在你作为亡魂追问：{user_input}"
-            res = call_llm(f"你是在忘川河畔接待亡魂的摆渡人。请简短、富有哲理地回答亡魂的追问（限制60字以内）：{ctx}", [])
-            st.session_state.history.append({"role": "ferryman", "content": res})
-            st.rerun()
+        with right_col: # ✅ 结束后的对话也放右边
+            with st.spinner("🌊 摆渡人正在倾听你的不甘..."):
+                ctx = f"你生前的判词是：{st.session_state.history[-2]['content']}\n现在你作为亡魂追问：{user_input}"
+                res = call_llm(f"你是在忘川河畔接待亡魂的摆渡人。请简短、富有哲理地回答亡魂的追问（限制60字以内）：{ctx}", [])
+                st.session_state.history.append({"role": "ferryman", "content": res})
+                st.rerun()
