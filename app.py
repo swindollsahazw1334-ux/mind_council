@@ -422,8 +422,16 @@ def render_chat():
             "adventure": ("adventure", "🔥", "KNIGHT of WANDS (权杖骑士·冒险)"),
         }
         
-        # 处理换行
-        safe_text = text.replace("\n", "<br>")
+        # ✅ 新增：手写 Markdown 转 HTML 解析器，消除满屏的星号！
+        safe_text = text
+        # 1. 转换引用块 (给游戏结束时的史官判词使用)
+        safe_text = re.sub(r'^>\s?(.*)', r'<div style="border-left: 3px solid #5a3e7d; padding-left: 10px; margin: 10px 0; color: #b3a0c4; font-style: italic;">\1</div>', safe_text, flags=re.MULTILINE)
+        # 2. 转换加粗 (**字**) -> 替换为 HTML <b> 标签，并提亮为纯白色
+        safe_text = re.sub(r'\*\*(.*?)\*\*', r'<b style="color: #FFFFFF; text-shadow: 0 0 5px rgba(255,255,255,0.3);">\1</b>', safe_text)
+        # 3. 转换斜体 (*字*) -> 替换为 HTML <i> 标签，稍微降低透明度
+        safe_text = re.sub(r'\*(.*?)\*', r'<i style="opacity: 0.7;">\1</i>', safe_text)
+        # 4. 最后处理换行
+        safe_text = safe_text.replace("\n", "<br>")
 
         if role == "ferryman":
             # 摆渡人特殊卡片
