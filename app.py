@@ -454,16 +454,12 @@ def render_chat():
 
 # --- 顶部 HUD (Heads-Up Display) ---
 with st.container():
-    c1, c2, c3 = st.columns([3, 1.5, 1], gap="medium", vertical_alignment="bottom")
+    c1, c2 = st.columns([4, 1], gap="medium", vertical_alignment="bottom")
     
     with c1:
         st.title("🧠 Inner Council")
         
     with c2:
-        # ✅ 修改点：直接绑定 key="user_mbti"，Streamlit 会自动同步 session_state
-        st.text_input("MBTI", key="user_mbti", label_visibility="collapsed")
-    
-    with c3:
         if st.button("🔄 重启议会", use_container_width=True):
             st.session_state.clear()
             st.rerun()
@@ -573,7 +569,6 @@ if st.session_state.stage == "INIT":
                 # 生成投胎报告并写入聊天流
                 report = f"""
                 （系统档案建立完毕）
-                **MBTI 人格**: {st.session_state.user_mbti}
                 **初始年龄**: {st.session_state.age} 岁
                 **开局模式**: 听天由命 (随机生成)
                 
@@ -632,7 +627,6 @@ if st.session_state.stage == "INIT":
                 # 生成投胎报告
                 report = f"""
                 （系统档案建立完毕）
-                **MBTI 人格**: {st.session_state.user_mbti}
                 **初始年龄**: {st.session_state.age} 岁
                 **开局模式**: 逆天改命 (完全定制)
                 
@@ -797,7 +791,6 @@ elif st.session_state.stage == "GENERATE_EVENT":
         # ⚠️ 写实深度版：千人千面、真实困境、伦理与心理思辨
         event_prompt = f"""
         你是一个深度的心理学与社会学人生模拟器引擎。玩家当前 {st.session_state.age} 岁。
-        MBTI：{st.session_state.user_mbti}
         当前属性：家境 {st.session_state.attributes['家境']}/10, 天赋 {st.session_state.attributes['天赋']}/10, 运气 {st.session_state.attributes['运气']}/10, 努力 {st.session_state.attributes['努力']}/10, 健康 {st.session_state.attributes['健康']}/100
         当前存款：¥{st.session_state.attributes['金钱']}
         
@@ -962,33 +955,57 @@ elif st.session_state.stage == "FERRYMAN_JUDGE":
         st.session_state.stage = "MAINTENANCE" # ✅ 长大后，进入生存结算阶段
         st.rerun()
 
-# 5. 🪦 游戏结束
+# 5. 🪦 游戏结束 (人生走马灯与最终报告)
 elif st.session_state.stage == "GAME_OVER":
     if "over_reported" not in st.session_state:
+        # 🌟 核心新增：调用大模型生成一生回顾！
+        with st.spinner("⏳ 命运的羽毛笔正在为你撰写一生的传记..."):
+            
+            assets_display = ', '.join(st.session_state.assets) if st.session_state.assets else '无'
+            
+            epitaph_prompt = f"""
+            你是一位见证无数灵魂起落的命运史官。玩家刚刚结束了他在模拟器中的一生。
+            【终年】：{st.session_state.age} 岁
+            【死因】：{st.session_state.death_reason}
+            【最终属性】：家境 {st.session_state.attributes['家境']}/10, 天赋 {st.session_state.attributes['天赋']}/10, 运气 {st.session_state.attributes['运气']}/10, 努力 {st.session_state.attributes['努力']}/10, 财富 ¥{st.session_state.attributes['金钱']}
+            【生前资产】：{assets_display}
+            
+            请结合这些冰冷的数据和玩家的死因，为他撰写一段【人生走马灯与最终判词】。
+            【写作要求】：
+            1. 语气深沉、悲悯或带有一丝讽刺，充满宿命感与文学性。
+            2. 综合评价他这一生（例如：极致的努力是否跨越了糟糕的家境？绝顶的天赋是否被厄运摧毁？是被金钱压垮还是安享了荣华富贵？）
+            3. 结尾给出一句简短深刻的【墓志铭】。
+            4. 字数严格控制在 200 字左右。
+            """
+            
+            # 提高温度(0.9)让判词更具文学性和随机性
+            epitaph_text = call_llm(epitaph_prompt, [], temperature=0.9)
+            
         final_report = f"""
         <div style="text-align:center; font-size:1.5em; margin-bottom:15px; color:#FF6B6B;">
             🪦 THE END
         </div>
         
         **终年**：{st.session_state.age} 岁
-        **结局原因**：{st.session_state.death_reason}
+        **结局**：{st.session_state.death_reason}
         
-        **最终人生结算**：
-        🏠 家境：{st.session_state.attributes['家境']}
-        ✨ 天赋：{st.session_state.attributes['天赋']}
-        🍀 运气：{st.session_state.attributes['运气']}
-        💪 努力：{st.session_state.attributes['努力']}
-        ❤️ 健康：{st.session_state.attributes['健康']}
+        **📜 命运史官的判词**：
+        > {epitaph_text}
+        
+        **📊 最终灵魂刻痕**：
+        🏠 家境：{st.session_state.attributes['家境']} | ✨ 天赋：{st.session_state.attributes['天赋']} | 🍀 运气：{st.session_state.attributes['运气']}
+        💪 努力：{st.session_state.attributes['努力']} | ❤️ 健康：{st.session_state.attributes['健康']} | 💰 财富：¥{st.session_state.attributes['金钱']}
         
         *点击右上角「重启议会」，开启下一段轮回。*
         """
-        st.session_state.history.append({"role": "detective", "content": final_report})
+        st.session_state.history.append({"role": "detective", "content": final_report.strip()})
         st.session_state.over_reported = True
         st.rerun()
+        
     if user_input:
         st.session_state.history.append({"role": "user", "content": user_input})
-        with st.spinner("🌊 摆渡人正在思考..."):
-            ctx = f"前文裁决：{st.session_state.history[-1]['content']}\n新追问：{user_input}"
-            res = call_llm(f"摆渡人简短回答用户追问：{ctx}", [])
+        with st.spinner("🌊 摆渡人正在倾听你的不甘..."):
+            ctx = f"你生前的判词是：{st.session_state.history[-2]['content']}\n现在你作为亡魂追问：{user_input}"
+            res = call_llm(f"你是在忘川河畔接待亡魂的摆渡人。请简短、富有哲理地回答亡魂的追问（限制60字以内）：{ctx}", [])
             st.session_state.history.append({"role": "ferryman", "content": res})
             st.rerun()
