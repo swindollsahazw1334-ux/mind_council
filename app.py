@@ -530,24 +530,27 @@ if st.session_state.stage == "INIT":
     st.markdown("<h3 style='text-align: center; color: #FFD700; margin-top: 20px;'>🌌 灵魂转生枢纽</h3>", unsafe_allow_html=True)
     st.info("👋 欢迎来到潜意识模拟器。你可以选择听从命运的安排，或是自己定制灵魂的底色。")
     
-    # ✅ 新增：使用 Tabs 把随机和自定义分开
     tab1, tab2 = st.tabs(["🎲 听天由命 (随机抽取)", "✍️ 逆天改命 (自定义属性)"])
     
     # ==================================
     # 模式 1：原本的随机抽卡模式
     # ==================================
     with tab1:
-        st.write("系统将根据现实社会的真实阶级财富分布，为你随机分配命格。")
+        st.write("系统将根据现实社会的真实阶级与全球人口分布，为你随机分配命格。")
         if st.button("🎲 抽取命格，开始新的人生", use_container_width=True):
             with st.spinner("命运齿轮开始转动..."):
                 time.sleep(1)
                 
-                # 1. 真实社会阶级概率抽取
+                # 🌍 1. 新增：全球国籍/出生地抽卡 (按现实人口比例大致划分权重)
+                regions = ["中国", "印度", "美国", "北欧高福利国", "拉美地区", "非洲", "战乱地区", "日本/韩国"]
+                region_weights = [18.0, 18.0, 4.0, 0.5, 8.0, 15.0, 2.0, 2.5]
+                rolled_region = random.choices(regions, weights=region_weights, k=1)[0]
+
+                # 2. 真实社会阶级概率抽取
                 bg_levels = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]
                 bg_weights = [10.0, 20.0, 30.0, 20.0, 10.0, 5.0, 3.0, 1.5, 0.4, 0.1]
                 rolled_bg = random.choices(bg_levels, weights=bg_weights, k=1)[0]
                 
-                # 2. 阶级决定初始压岁钱 (指数级差距)
                 initial_money_map = {
                     1: 0, 2: 50, 3: 200, 4: 800, 5: 3000, 
                     6: 10000, 7: 50000, 8: 200000, 9: 500000, 10: 1000000
@@ -556,6 +559,7 @@ if st.session_state.stage == "INIT":
                 if initial_money < 0: initial_money = 0
                 
                 st.session_state.attributes = {
+                    "出生地": rolled_region, # ✅ 写入出生地
                     "家境": rolled_bg, 
                     "天赋": random.randint(2, 9),
                     "运气": random.randint(1, 10),
@@ -566,17 +570,17 @@ if st.session_state.stage == "INIT":
                 st.session_state.assets = [] 
                 st.session_state.age = 6
                 
-                # 生成投胎报告并写入聊天流
                 report = f"""
                 （系统档案建立完毕）
                 **初始年龄**: {st.session_state.age} 岁
                 **开局模式**: 听天由命 (随机生成)
                 
                 📊 **初始属性面板**：
+                🌍 出生地：【{st.session_state.attributes['出生地']}】
                 🏠 家境：{st.session_state.attributes['家境']} / 10 | ✨ 天赋：{st.session_state.attributes['天赋']} / 10
                 🍀 运气：{st.session_state.attributes['运气']} / 10 | 💪 努力：{st.session_state.attributes['努力']} / 10
                 ❤️ 健康：{st.session_state.attributes['健康']} / 100
-                💰 金钱：¥{st.session_state.attributes['金钱']}
+                💰 财富：¥{st.session_state.attributes['金钱']} (已自动换算为购买力等值量)
                 🎒 资产：无
                 
                 命运的帷幕已拉开，请准备迎接你的第一个人生事件。
@@ -592,7 +596,10 @@ if st.session_state.stage == "INIT":
     with tab2:
         st.write("自行设定灵魂的核心属性（使用滑块调整）：")
         
-        # 使用列布局让界面更美观
+        # ✅ 新增：允许玩家手动选择出生地
+        custom_region = st.selectbox("🌍 选择出生地 (决定你的文化与社会背景)：", 
+            ["中国", "美国", "印度", "北欧高福利国", "拉美地区", "非洲", "战乱地区", "日本/韩国"])
+            
         col1, col2 = st.columns(2)
         with col1:
             custom_bg = st.slider("🏠 家境 (1=赤贫, 10=财阀)", min_value=1, max_value=10, value=5)
@@ -605,7 +612,6 @@ if st.session_state.stage == "INIT":
             with st.spinner("正在为你重塑灵魂..."):
                 time.sleep(1)
                 
-                # 依然保留阶级带来的金钱差距！
                 initial_money_map = {
                     1: 0, 2: 50, 3: 200, 4: 800, 5: 3000, 
                     6: 10000, 7: 50000, 8: 200000, 9: 500000, 10: 1000000
@@ -614,6 +620,7 @@ if st.session_state.stage == "INIT":
                 if initial_money < 0: initial_money = 0
                 
                 st.session_state.attributes = {
+                    "出生地": custom_region, # ✅ 写入自定义的出生地
                     "家境": custom_bg, 
                     "天赋": custom_talent,
                     "运气": custom_luck,
@@ -624,17 +631,17 @@ if st.session_state.stage == "INIT":
                 st.session_state.assets = [] 
                 st.session_state.age = 6
                 
-                # 生成投胎报告
                 report = f"""
                 （系统档案建立完毕）
                 **初始年龄**: {st.session_state.age} 岁
                 **开局模式**: 逆天改命 (完全定制)
                 
                 📊 **初始属性面板**：
+                🌍 出生地：【{st.session_state.attributes['出生地']}】
                 🏠 家境：{st.session_state.attributes['家境']} / 10 | ✨ 天赋：{st.session_state.attributes['天赋']} / 10
                 🍀 运气：{st.session_state.attributes['运气']} / 10 | 💪 努力：{st.session_state.attributes['努力']} / 10
                 ❤️ 健康：{st.session_state.attributes['健康']} / 100
-                💰 金钱：¥{st.session_state.attributes['金钱']}
+                💰 财富：¥{st.session_state.attributes['金钱']} (已自动换算为购买力等值量)
                 🎒 资产：无
                 
                 你已亲手写下了自己的命运剧本，准备迎接人生吧。
@@ -790,21 +797,21 @@ elif st.session_state.stage == "GENERATE_EVENT":
         
         # ⚠️ 写实深度版：千人千面、真实困境、伦理与心理思辨
         event_prompt = f"""
-        你是一个深度的心理学与社会学人生模拟器引擎。玩家当前 {st.session_state.age} 岁。
-        当前属性：家境 {st.session_state.attributes['家境']}/10, 天赋 {st.session_state.attributes['天赋']}/10, 运气 {st.session_state.attributes['运气']}/10, 努力 {st.session_state.attributes['努力']}/10, 健康 {st.session_state.attributes['健康']}/100
-        当前存款：¥{st.session_state.attributes['金钱']}
+        你是一个深度的社会学与心理学人生模拟器引擎。玩家当前 {st.session_state.age} 岁。
+        当前属性：🌍 出生地【{st.session_state.attributes['出生地']}】, 家境 {st.session_state.attributes['家境']}/10, 天赋 {st.session_state.attributes['天赋']}/10, 运气 {st.session_state.attributes['运气']}/10, 努力 {st.session_state.attributes['努力']}/10, 健康 {st.session_state.attributes['健康']}/100
+        当前财富：¥{st.session_state.attributes['金钱']} (统一以购买力平价量化衡量)
         
         【核心生成法则】（必须严格遵守）：
-        1. 千人千面（真实性基石）：必须严格基于玩家当前的【年龄】、【家境】和【MBTI】生成完全匹配其阶层和性格的现实事件。富二代不会为交不起房租发愁，底层打工人不会面临家族信托的烦恼；高天赋者面临的可能是精神内耗，低天赋者面临的可能是竞争淘汰。
-        2. 聚焦深度现实与伦理两难：拒绝平庸的“被骂、生病、加班”。事件必须包含【现实利益】与【心理/道德/自我认同】的剧烈撕扯。
-        3. 真实困境举例（请根据玩家当前属性灵活变通）：
-           - 职场与学术挣扎：你花了几个月跑数据，却发现结果推翻了原定假设。强行修改数据能顺利交差，但违背底线，你要怎么做？
-           - 伦理与利益困境：你参与了一个以动物为噱头促进地方旅游发展的项目，发现背后潜藏着动物福利隐患，但撤资会让当地人失去生计，你要怎么做？
-           - 原生家庭与独立：家人愿意出巨资帮你买房，但代价是必须接受他们安排的婚姻和事业路径，你要怎么做？
-           - 阶级与认同：你通过极高的努力跨越了阶层，却发现自己既无法融入上流圈子，又与曾经的发小渐行渐远，陷入深深的孤独，你要怎么做？
-        4. 语气：像客观冷静的传记作家，娓娓道来，充满生活颗粒感。
+        1. 强烈的地缘特色：事件必须极度贴合玩家的【出生地】！
+           - 若在“印度”：可能遭遇极端的种姓歧视、贫民窟基建危机或IT外包行业的残酷竞争。
+           - 若在“美国”：可能遭遇极其昂贵的医疗账单、枪支治安风险、或常青藤名校的精英教育博弈。
+           - 若在“日本/韩国”：极度压抑的职场前后辈文化、超高压应试教育或老龄化社会的孤独。
+           - 若在“北欧”：不用为钱发愁，但可能陷入无尽的冬日抑郁、虚无感和寻找人生意义的哲学困境。
+           - 若在“战乱地区”：防空警报、武装冲突、食物短缺等极端生存危机。
+        2. 千人千面：在地域特色的基础上，继续结合【家境】和【天赋】生成阶级特有事件。美国的财阀之子绝不会遭遇帮派枪战，印度的底层劳工绝不会去硅谷创业。
+        3. 聚焦深度现实与伦理两难：事件必须包含【现实利益】与【心理/道德/自我认同】的剧烈撕扯。
         
-        请生成一个符合该年龄段心智的【极具现实痛点和心理思辨性】的突发事件。
+        请生成一个符合该年龄段心智的【极具地缘特色与现实痛点】的突发事件。
         ⚠️ 规则：字数严格控制在 100 字以内！直接描述发生了什么，以“你要怎么做？”结尾。绝对不要给选项。
         """
         event_text = call_llm(event_prompt, [])
@@ -868,7 +875,6 @@ elif st.session_state.stage == "ROLL_DICE":
         st.session_state.stage = "FERRYMAN_JUDGE"
         st.rerun()
 
-# 4. ⚖️ 隐藏议会与命运结算
 # 4. ⚖️ 极速命运结算
 elif st.session_state.stage == "FERRYMAN_JUDGE":
     with st.spinner("命运结算中..."):
@@ -965,6 +971,7 @@ elif st.session_state.stage == "GAME_OVER":
             
             epitaph_prompt = f"""
             你是一位见证无数灵魂起落的命运史官。玩家刚刚结束了他在模拟器中的一生。
+            🌍 【出生地】：{st.session_state.attributes['出生地']}
             【终年】：{st.session_state.age} 岁
             【死因】：{st.session_state.death_reason}
             【最终属性】：家境 {st.session_state.attributes['家境']}/10, 天赋 {st.session_state.attributes['天赋']}/10, 运气 {st.session_state.attributes['运气']}/10, 努力 {st.session_state.attributes['努力']}/10, 财富 ¥{st.session_state.attributes['金钱']}
@@ -973,7 +980,7 @@ elif st.session_state.stage == "GAME_OVER":
             请结合这些冰冷的数据和玩家的死因，为他撰写一段【人生走马灯与最终判词】。
             【写作要求】：
             1. 语气深沉、悲悯或带有一丝讽刺，充满宿命感与文学性。
-            2. 综合评价他这一生（例如：极致的努力是否跨越了糟糕的家境？绝顶的天赋是否被厄运摧毁？是被金钱压垮还是安享了荣华富贵？）
+            2. 综合评价他这一生。必须结合他的【出生地】的宏观环境！例如：在印度的种姓泥沼中挣扎、在北欧的高福利下抑郁而终、或者在美利坚的资本浪潮中被粉碎。
             3. 结尾给出一句简短深刻的【墓志铭】。
             4. 字数严格控制在 200 字左右。
             """
