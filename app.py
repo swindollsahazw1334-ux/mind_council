@@ -68,7 +68,7 @@ FACTIONS = {
 # ==========================================
 # 2. 界面 CSS 配置
 # ==========================================
-st.set_page_config(page_title="Inner Council", page_icon="🧠", layout="centered")
+st.set_page_config(page_title="Inner Council", page_icon="🧠", layout="wide")
 
 st.markdown("""
 <style>
